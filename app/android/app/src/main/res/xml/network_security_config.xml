@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The admin panel is normally reached over plain HTTP on a LAN or an emulator
+  host during development. HTTPS stays required for everything else; point the
+  app at an https:// address in production and this exception is unused.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

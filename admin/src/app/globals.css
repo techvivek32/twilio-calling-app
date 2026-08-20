@@ -1,0 +1,104 @@
+@import "tailwindcss";
+
+/* Tokens mirror the Flutter client so both surfaces read as one product. */
+@theme {
+  --color-brand-50: #eef4fd;
+  --color-brand-100: #e4ecfb;
+  --color-brand-500: #0b4fce;
+  --color-brand-600: #0a46b8;
+  --color-brand-700: #083fa6;
+
+  --color-ink: #11131a;
+  --color-ink-soft: #5b6274;
+  --color-ink-muted: #8b92a5;
+
+  --color-canvas: #f5f6fb;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f1f3fa;
+  --color-line: #e3e6f0;
+
+  --color-ok: #10a957;
+  --color-ok-soft: #dcfce7;
+  --color-ok-ink: #15803d;
+
+  --color-warn: #b45309;
+  --color-warn-soft: #fef3c7;
+
+  --color-bad: #dc2626;
+  --color-bad-soft: #fde2e2;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+  font-family:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/*
+ * Tailwind v4 cannot @apply a class that is itself defined here, so each
+ * component class spells out its own utilities rather than composing.
+ */
+@utility card {
+  @apply rounded-xl border border-line bg-surface;
+}
+
+@utility card-label {
+  @apply text-xs font-bold uppercase tracking-wider text-ink-soft;
+}
+
+@utility btn-base {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5
+    text-sm font-semibold transition-colors disabled:cursor-not-allowed
+    disabled:opacity-60;
+}
+
+@utility btn-primary {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5
+    text-sm font-semibold transition-colors disabled:cursor-not-allowed
+    disabled:opacity-60 bg-brand-500 text-white hover:bg-brand-600;
+}
+
+@utility btn-secondary {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5
+    text-sm font-semibold transition-colors disabled:cursor-not-allowed
+    disabled:opacity-60 border border-line bg-surface text-ink
+    hover:bg-surface-muted;
+}
+
+@utility btn-danger {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5
+    text-sm font-semibold transition-colors disabled:cursor-not-allowed
+    disabled:opacity-60 border border-bad-soft bg-surface text-bad
+    hover:bg-bad-soft;
+}
+
+@utility field {
+  @apply w-full rounded-lg border border-line bg-surface px-3.5 py-2.5 text-sm
+    text-ink outline-none transition placeholder:text-ink-muted
+    focus:border-brand-500 focus:ring-2 focus:ring-brand-100;
+}
+
+@utility field-label {
+  @apply mb-1.5 block text-sm font-semibold text-ink;
+}
+
+@utility pill {
+  @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs
+    font-semibold;
+}
+
+@utility th {
+  @apply px-4 py-3 text-left text-xs font-bold uppercase tracking-wider
+    text-ink-soft;
+}
+
+@utility td {
+  @apply px-4 py-3.5 align-middle text-sm text-ink;
+}

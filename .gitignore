@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Build output
+admin/.next/
+admin/out/
+app/build/
+app/.dart_tool/
+app/.flutter-plugins
+app/.flutter-plugins-dependencies
+release/
+
+# Local secrets — copy admin/.env.example to admin/.env.local instead
+.env
+.env.local
+.env.*.local
+
+# Test artifacts
+admin/test-results/
+admin/playwright-report/
+admin/blob-report/
+
+# Editor / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.log
