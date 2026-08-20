@@ -1,8 +1,14 @@
-import { NextResponse, type NextRequest } from 'next/server';
-
 import { clearSessionCookie } from '@/lib/auth';
 
-export async function POST(request: NextRequest) {
+export async function POST() {
   await clearSessionCookie();
-  return NextResponse.redirect(new URL('/login', request.url), { status: 303 });
+
+  // A relative Location keeps the admin on whatever host they were using.
+  // Building an absolute URL from `request.url` can resolve to a different
+  // origin (localhost vs a LAN IP), which strands the browser and drops
+  // origin-scoped storage such as the saved theme.
+  return new Response(null, {
+    status: 303,
+    headers: { Location: '/login' },
+  });
 }

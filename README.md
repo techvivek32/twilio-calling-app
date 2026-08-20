@@ -6,8 +6,7 @@ admin panel that hands out numbers and watches usage.
 ```
 twilio-call/
 ├── admin/     Next.js 16 + MongoDB — admin UI and the app's API
-├── app/       Flutter 3.38 — the Android client
-└── release/   prebuilt release APKs
+└── app/       Flutter 3.38 — the Android client
 ```
 
 ## Quick start
@@ -16,8 +15,8 @@ twilio-call/
 # 1. Backend + admin panel
 cd admin
 npm install
-cp .env.example .env.local        # fill in AUTH_SECRET and APP_ENCRYPTION_KEY
-npm run seed
+cp .env.example .env.local        # set AUTH_SECRET, APP_ENCRYPTION_KEY and SEED_ADMIN_PASSWORD
+npm run seed                      # creates only the admin account
 npm run dev                       # http://localhost:3000
 
 # 2. App
@@ -26,8 +25,9 @@ flutter pub get
 flutter run
 ```
 
-Sign in to the admin panel as `admin@businessconnect.local` / `ChangeMe123!`,
-and to the app as `alex@businessconnect.local` / `Password123!`.
+Sign in to the admin panel with the `SEED_ADMIN_*` credentials from your
+`.env.local`. There is no demo data: create your own app users on the **Users**
+page, and they sign in to the mobile app with those credentials.
 
 On a physical phone, set **Server address** on the app's sign-in screen to
 `http://<your-computer-LAN-IP>:3000`. An Android emulator works with the
@@ -39,8 +39,8 @@ The admin owns everything; the app only ever sees what it was granted.
 
 1. Admin adds their Twilio credentials on **Settings**.
 2. **Sync from Twilio** pulls every number on the account into the panel.
-3. Admin assigns a number to a user on **Phone Numbers** (or when creating the
-   user).
+3. Admin creates app users, then assigns each one a number on **Phone Numbers**
+   (or at the moment they create the user).
 4. That user signs in to the app and dials, texts and receives from that number.
 5. Every call and message is written back, so **Calls**, **Messages** and the
    dashboard show who used which number, how often, and for how long.
@@ -53,8 +53,8 @@ away and the app says so instead of failing.
 | Command | What it covers |
 | --- | --- |
 | `cd admin && npm run lint && npm run build` | Types and production build |
-| `cd admin && npm run e2e` | 8 Playwright tests: login, auth gating, assignment both ways, user create/delete, duplicate rejection, Twilio settings persistence, manual numbers, sign-out |
-| `cd admin && npm run smoke` | 15 checks over every mobile endpoint incl. 401/409 paths |
+| `cd admin && npm run e2e` | 9 Playwright tests: auth gating, theme switching and persistence, the full provision → assign → release → delete lifecycle, validation, Twilio settings persistence |
+| `cd admin && npm run smoke -- <email> <password>` | Every mobile endpoint incl. 401/409 paths, against a real app user |
 | `cd app && flutter analyze && flutter test` | 24 tests against a mocked API |
 
 ## Twilio setup
@@ -67,6 +67,12 @@ Required for inbound: a public webhook base URL, with each number pointed at
 Required for in-app audio: API Key SID + Secret + TwiML App SID.
 
 Secrets are encrypted at rest with AES-256-GCM and never returned to the browser.
+
+## Theme
+
+The admin panel ships light and dark themes with a Light / Dark / System
+switcher in the sidebar. The choice is remembered per browser and applied
+before first paint.
 
 ## Current limits
 

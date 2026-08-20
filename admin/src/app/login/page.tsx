@@ -3,6 +3,9 @@
 import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
 
+import { IconAlert, IconPhone } from '@/components/icons';
+import { ThemeToggle } from '@/components/theme-toggle';
+
 import { loginAction, type LoginState } from './actions';
 
 function SubmitButton() {
@@ -21,59 +24,77 @@ export default function LoginPage() {
   );
 
   return (
-    <main className="flex flex-1 items-center justify-center p-6">
-      <div className="w-full max-w-md rounded-2xl border border-line bg-surface p-8 shadow-sm">
-        <div className="mb-6 flex flex-col items-center text-center">
-          <span className="mb-4 inline-flex size-16 items-center justify-center rounded-2xl bg-brand-500 text-2xl text-white">
-            ☎
+    <main className="flex flex-1 flex-col items-center justify-center px-5 py-10">
+      <div className="w-full max-w-sm">
+        <div className="mb-7 flex flex-col items-center text-center">
+          <span className="mb-4 flex size-12 items-center justify-center rounded-xl bg-brand text-on-brand shadow-raised">
+            <IconPhone size={22} />
           </span>
-          <h1 className="text-2xl font-extrabold tracking-tight">
+          <h1 className="text-xl font-semibold tracking-tight text-ink">
             Business Connect
           </h1>
           <p className="mt-1 text-sm text-ink-soft">
-            Admin panel — sign in to manage numbers and users.
+            Sign in to the admin panel
           </p>
         </div>
 
-        <form action={formAction} className="space-y-4">
-          {state.error ? (
-            <div className="rounded-lg border border-bad/30 bg-bad-soft px-4 py-3 text-sm text-bad">
-              {state.error}
+        <div className="card p-6">
+          <form action={formAction} className="space-y-4">
+            {state.error ? (
+              <div
+                role="alert"
+                className="flex items-start gap-2.5 rounded-lg border border-bad/25 bg-bad-soft px-3.5 py-3 text-sm text-bad"
+              >
+                <span className="mt-px shrink-0">
+                  <IconAlert size={16} />
+                </span>
+                {state.error}
+              </div>
+            ) : null}
+
+            <div>
+              <label className="field-label" htmlFor="email">
+                Email
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="username"
+                required
+                autoFocus
+                className="field"
+                placeholder="you@company.com"
+              />
             </div>
-          ) : null}
 
-          <div>
-            <label className="field-label" htmlFor="email">
-              Email
-            </label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              autoComplete="username"
-              required
-              className="field"
-              placeholder="admin@businessconnect.local"
-            />
+            <div>
+              <label className="field-label" htmlFor="password">
+                Password
+              </label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                required
+                className="field"
+                placeholder="••••••••"
+              />
+            </div>
+
+            <SubmitButton />
+          </form>
+        </div>
+
+        <div className="mt-6 flex items-center justify-between gap-4">
+          <p className="text-xs text-ink-muted">
+            Admin access only. App users sign in from the mobile app.
+          </p>
+          <div className="w-28 shrink-0">
+            <ThemeToggle />
           </div>
-
-          <div>
-            <label className="field-label" htmlFor="password">
-              Password
-            </label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              className="field"
-              placeholder="••••••••"
-            />
-          </div>
-
-          <SubmitButton />
-        </form>
+        </div>
       </div>
     </main>
   );

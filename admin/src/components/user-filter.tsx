@@ -14,10 +14,10 @@ export function UserFilter({
   const current = searchParams.get('user') ?? '';
 
   return (
-    <label className="flex items-center gap-2 text-sm font-semibold text-ink-soft">
+    <label className="flex items-center gap-2 text-sm font-medium text-ink-soft">
       Filter
       <select
-        className="field max-w-56 py-1.5"
+        className="field max-w-56 py-2"
         value={current}
         onChange={(event) => {
           const value = event.target.value;

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 
 import { ActionForm, Disclosure } from '@/components/action-form';
+import { IconChevronRight, IconUsers } from '@/components/icons';
 import {
   Avatar,
   Card,
@@ -29,13 +30,16 @@ export default async function UsersPage() {
         subtitle="App accounts, the number each one dials from, and their usage."
       />
 
-      <Disclosure label="Add a user">
+      <Disclosure
+        label="Add a user"
+        description="They sign in to the mobile app with this email and password."
+      >
         <ActionForm
           action={createUserAction}
           submitLabel="Create user"
           pendingLabel="Creating…"
         >
-          <div className="mb-4 grid gap-4 sm:grid-cols-2">
+          <div className="mb-5 grid gap-4 sm:grid-cols-2">
             <div>
               <label className="field-label" htmlFor="name">
                 Full name
@@ -67,6 +71,9 @@ export default async function UsersPage() {
                 className="field"
                 placeholder="At least 8 characters"
               />
+              <p className="mt-1.5 text-xs text-ink-muted">
+                Shown in clear text so you can pass it on, then change it.
+              </p>
             </div>
             <div>
               <label className="field-label" htmlFor="role">
@@ -79,10 +86,15 @@ export default async function UsersPage() {
             </div>
             <div className="sm:col-span-2">
               <label className="field-label" htmlFor="numberId">
-                Assign a phone number (optional)
+                Assign a phone number
               </label>
-              <select id="numberId" name="numberId" className="field" defaultValue="">
-                <option value="">— None —</option>
+              <select
+                id="numberId"
+                name="numberId"
+                className="field"
+                defaultValue=""
+              >
+                <option value="">— None for now —</option>
                 {freeNumbers.map((number) => (
                   <option key={number.id} value={number.id}>
                     {formatPhone(number.phoneNumber)}
@@ -90,15 +102,27 @@ export default async function UsersPage() {
                   </option>
                 ))}
               </select>
-              {freeNumbers.length === 0 ? (
-                <p className="mt-1.5 text-xs text-ink-soft">
-                  Every number is taken.{' '}
-                  <Link href="/numbers" className="font-semibold text-brand-500">
-                    Sync or add more numbers
-                  </Link>
-                  .
-                </p>
-              ) : null}
+              <p className="mt-1.5 text-xs text-ink-muted">
+                {numbers.length === 0 ? (
+                  <>
+                    No numbers imported yet —{' '}
+                    <Link href="/numbers" className="text-brand underline">
+                      sync your Twilio account
+                    </Link>
+                    .
+                  </>
+                ) : freeNumbers.length === 0 ? (
+                  <>
+                    Every number is taken —{' '}
+                    <Link href="/numbers" className="text-brand underline">
+                      free one up or add another
+                    </Link>
+                    .
+                  </>
+                ) : (
+                  `${freeNumbers.length} number(s) available.`
+                )}
+              </p>
             </div>
           </div>
         </ActionForm>
@@ -107,8 +131,9 @@ export default async function UsersPage() {
       <Card className="mt-6">
         {users.length === 0 ? (
           <EmptyState
+            Icon={IconUsers}
             title="No users yet"
-            description="Create the first app account to hand out a number."
+            description="Create the first account, then give it one of your Twilio numbers."
           />
         ) : (
           <Table
@@ -117,26 +142,26 @@ export default async function UsersPage() {
                 <th className="th">User</th>
                 <th className="th">Number</th>
                 <th className="th">Role</th>
-                <th className="th">Calls</th>
-                <th className="th">Messages</th>
-                <th className="th">Last login</th>
+                <th className="th text-right">Calls</th>
+                <th className="th text-right">Messages</th>
+                <th className="th">Last sign-in</th>
                 <th className="th" />
               </tr>
             }
           >
             {users.map((user) => (
-              <tr key={user.id} className="hover:bg-surface-muted/60">
+              <tr key={user.id} className="transition-colors hover:bg-sunken">
                 <td className="td">
                   <div className="flex items-center gap-3">
                     <Avatar name={user.name} />
                     <div className="min-w-0">
                       <Link
                         href={`/users/${user.id}`}
-                        className="font-semibold text-ink hover:text-brand-500"
+                        className="font-medium text-ink hover:text-brand"
                       >
                         {user.name}
                       </Link>
-                      <p className="truncate text-xs text-ink-soft">
+                      <p className="truncate text-xs text-ink-muted">
                         {user.email}
                       </p>
                     </div>
@@ -148,7 +173,7 @@ export default async function UsersPage() {
                   ) : (
                     <div className="flex flex-col gap-1">
                       {user.numbers.map((number) => (
-                        <span key={number.id} className="font-medium">
+                        <span key={number.id} className="tabular-nums">
                           {formatPhone(number.phoneNumber)}
                         </span>
                       ))}
@@ -168,23 +193,29 @@ export default async function UsersPage() {
                     </Pill>
                   )}
                 </td>
-                <td className="td">
+                <td className="td text-right tabular-nums">
                   {user.callCount}
-                  <span className="block text-xs text-ink-soft">
+                  <span className="block text-xs text-ink-muted">
                     {formatDuration(user.talkTimeSec)}
                   </span>
                 </td>
-                <td className="td">{user.messageCount}</td>
+                <td className="td text-right tabular-nums">
+                  {user.messageCount}
+                </td>
                 <td className="td text-ink-soft">
                   {formatDateTime(user.lastLoginAt)}
                 </td>
-                <td className="td text-right">
-                  <Link
-                    href={`/users/${user.id}`}
-                    className="text-sm font-semibold text-brand-500 hover:underline"
-                  >
-                    Manage
-                  </Link>
+                <td className="td">
+                  <div className="flex justify-end">
+                    <Link
+                      href={`/users/${user.id}`}
+                      aria-label={`Manage ${user.name}`}
+                      className="btn-ghost px-2 py-1.5"
+                    >
+                      Manage
+                      <IconChevronRight size={15} />
+                    </Link>
+                  </div>
                 </td>
               </tr>
             ))}

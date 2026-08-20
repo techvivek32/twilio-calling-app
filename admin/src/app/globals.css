@@ -1,31 +1,105 @@
 @import "tailwindcss";
 
-/* Tokens mirror the Flutter client so both surfaces read as one product. */
-@theme {
-  --color-brand-50: #eef4fd;
-  --color-brand-100: #e4ecfb;
-  --color-brand-500: #0b4fce;
-  --color-brand-600: #0a46b8;
-  --color-brand-700: #083fa6;
+/* Lets `dark:` utilities key off the class the theme switcher sets. */
+@custom-variant dark (&:where(.dark, .dark *));
 
-  --color-ink: #11131a;
-  --color-ink-soft: #5b6274;
-  --color-ink-muted: #8b92a5;
+/*
+ * Colours are declared as runtime CSS variables and mapped into Tailwind with
+ * `@theme inline`, so every `bg-surface` / `text-ink` utility follows the
+ * active theme without a second set of `dark:` classes.
+ */
+@theme inline {
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-muted: var(--brand-muted);
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-on-brand: var(--on-brand);
 
-  --color-canvas: #f5f6fb;
-  --color-surface: #ffffff;
-  --color-surface-muted: #f1f3fa;
-  --color-line: #e3e6f0;
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-raised: var(--raised);
+  --color-sunken: var(--sunken);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
 
-  --color-ok: #10a957;
-  --color-ok-soft: #dcfce7;
-  --color-ok-ink: #15803d;
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-muted: var(--ink-muted);
 
-  --color-warn: #b45309;
-  --color-warn-soft: #fef3c7;
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-bad: var(--bad);
+  --color-bad-soft: var(--bad-soft);
 
-  --color-bad: #dc2626;
-  --color-bad-soft: #fde2e2;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+
+  --shadow-card: 0 1px 2px rgb(16 24 40 / 0.04), 0 1px 3px rgb(16 24 40 / 0.06);
+  --shadow-raised: 0 4px 8px -2px rgb(16 24 40 / 0.08),
+    0 2px 4px -2px rgb(16 24 40 / 0.04);
+}
+
+:root {
+  color-scheme: light;
+
+  --brand: #0b4fce;
+  --brand-strong: #083fa6;
+  --brand-muted: #dbe6fb;
+  --brand-soft: #eff4fd;
+  --on-brand: #ffffff;
+
+  --canvas: #f6f7f9;
+  --surface: #ffffff;
+  --raised: #ffffff;
+  --sunken: #f2f4f7;
+  --line: #e4e7ec;
+  --line-strong: #d0d5dd;
+
+  --ink: #101828;
+  --ink-soft: #475467;
+  --ink-muted: #98a2b3;
+
+  --ok: #067647;
+  --ok-soft: #dcfae6;
+  --warn: #b54708;
+  --warn-soft: #fef0c7;
+  --bad: #d92d20;
+  --bad-soft: #fee4e2;
+}
+
+.dark {
+  color-scheme: dark;
+
+  --brand: #6595f5;
+  --brand-strong: #86aff8;
+  --brand-muted: #1e2b48;
+  --brand-soft: #161d2e;
+  --on-brand: #08101f;
+
+  --canvas: #0a0d13;
+  --surface: #11151d;
+  --raised: #161b25;
+  --sunken: #1a2029;
+  --line: #232a36;
+  --line-strong: #2f3846;
+
+  --ink: #e7ecf3;
+  --ink-soft: #98a2b3;
+  --ink-muted: #667085;
+
+  --ok: #47cd89;
+  --ok-soft: #0d2a1e;
+  --warn: #fdb022;
+  --warn-soft: #2b1f0a;
+  --bad: #f97066;
+  --bad-soft: #2d1414;
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 1px 3px rgb(0 0 0 / 0.2);
+  --shadow-raised: 0 4px 10px -2px rgb(0 0 0 / 0.4);
 }
 
 html,
@@ -34,71 +108,88 @@ body {
 }
 
 body {
-  background: var(--color-canvas);
-  color: var(--color-ink);
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
-  font-family:
-    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  text-rendering: optimizeLegibility;
 }
 
-/*
- * Tailwind v4 cannot @apply a class that is itself defined here, so each
- * component class spells out its own utilities rather than composing.
- */
+/* Only paint focus rings for keyboard users. */
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--brand-muted);
+  color: var(--ink);
+}
+
+/* Slim scrollbars that follow the theme. */
+* {
+  scrollbar-color: var(--line-strong) transparent;
+  scrollbar-width: thin;
+}
+
 @utility card {
-  @apply rounded-xl border border-line bg-surface;
+  @apply rounded-xl border border-line bg-surface shadow-card;
 }
 
-@utility card-label {
-  @apply text-xs font-bold uppercase tracking-wider text-ink-soft;
-}
-
-@utility btn-base {
-  @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5
-    text-sm font-semibold transition-colors disabled:cursor-not-allowed
-    disabled:opacity-60;
+@utility eyebrow {
+  @apply text-[11px] font-semibold uppercase tracking-[0.09em] text-ink-muted;
 }
 
 @utility btn-primary {
-  @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5
-    text-sm font-semibold transition-colors disabled:cursor-not-allowed
-    disabled:opacity-60 bg-brand-500 text-white hover:bg-brand-600;
+  @apply inline-flex items-center justify-center gap-2 rounded-lg border
+    border-transparent bg-brand px-4 py-2.5 text-sm font-semibold text-on-brand
+    shadow-card transition-colors hover:bg-brand-strong
+    disabled:cursor-not-allowed disabled:opacity-55;
 }
 
 @utility btn-secondary {
-  @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5
-    text-sm font-semibold transition-colors disabled:cursor-not-allowed
-    disabled:opacity-60 border border-line bg-surface text-ink
-    hover:bg-surface-muted;
+  @apply inline-flex items-center justify-center gap-2 rounded-lg border
+    border-line bg-surface px-4 py-2.5 text-sm font-semibold text-ink
+    shadow-card transition-colors hover:border-line-strong hover:bg-sunken
+    disabled:cursor-not-allowed disabled:opacity-55;
+}
+
+@utility btn-ghost {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg border
+    border-transparent px-3 py-2 text-sm font-semibold text-ink-soft
+    transition-colors hover:bg-sunken hover:text-ink
+    disabled:cursor-not-allowed disabled:opacity-55;
 }
 
 @utility btn-danger {
-  @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5
-    text-sm font-semibold transition-colors disabled:cursor-not-allowed
-    disabled:opacity-60 border border-bad-soft bg-surface text-bad
-    hover:bg-bad-soft;
+  @apply inline-flex items-center justify-center gap-2 rounded-lg border
+    border-line bg-surface px-4 py-2.5 text-sm font-semibold text-bad
+    transition-colors hover:border-bad hover:bg-bad-soft
+    disabled:cursor-not-allowed disabled:opacity-55;
 }
 
 @utility field {
   @apply w-full rounded-lg border border-line bg-surface px-3.5 py-2.5 text-sm
-    text-ink outline-none transition placeholder:text-ink-muted
-    focus:border-brand-500 focus:ring-2 focus:ring-brand-100;
+    text-ink shadow-card outline-none transition
+    placeholder:text-ink-muted
+    focus:border-brand focus:ring-4 focus:ring-brand-muted
+    disabled:cursor-not-allowed disabled:opacity-60;
 }
 
 @utility field-label {
-  @apply mb-1.5 block text-sm font-semibold text-ink;
+  @apply mb-1.5 block text-sm font-medium text-ink;
 }
 
 @utility pill {
-  @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs
-    font-semibold;
+  @apply inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1
+    text-xs font-semibold;
 }
 
 @utility th {
-  @apply px-4 py-3 text-left text-xs font-bold uppercase tracking-wider
-    text-ink-soft;
+  @apply whitespace-nowrap px-5 py-3 text-left text-[11px] font-semibold
+    uppercase tracking-[0.07em] text-ink-muted;
 }
 
 @utility td {
-  @apply px-4 py-3.5 align-middle text-sm text-ink;
+  @apply px-5 py-4 align-middle text-sm text-ink;
 }

@@ -1,7 +1,13 @@
 import { expect, test, type Page } from '@playwright/test';
 
+import { E2E_NUMBER } from './global-setup';
+
 const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL ?? 'admin@businessconnect.local';
 const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD ?? 'ChangeMe123!';
+
+const USER_NAME = 'E2E Test User';
+const USER_EMAIL = 'e2e-user@businessconnect.local';
+const USER_PASSWORD = 'TestPassword123!';
 
 /** The desktop sidebar; scopes nav lookups away from in-page links. */
 function nav(page: Page) {
@@ -16,16 +22,17 @@ async function hydrated(page: Page) {
   await expect(page.locator('body')).toHaveAttribute('data-hydrated', 'true');
 }
 
-/** Follows a sidebar link and waits for the destination to be interactive. */
 async function goTo(page: Page, label: string) {
   await nav(page).getByRole('link', { name: label, exact: true }).click();
   await hydrated(page);
 }
 
-/** Expands one of the "add" panels on a list page. */
+/** Expands one of the "add" panels; a no-op when it is already open. */
 async function openPanel(page: Page, label: string) {
   const button = page.getByRole('button', { name: label });
-  await button.click();
+  if ((await button.getAttribute('aria-expanded')) !== 'true') {
+    await button.click();
+  }
   await expect(button).toHaveAttribute('aria-expanded', 'true');
 }
 
@@ -39,7 +46,28 @@ async function signIn(page: Page) {
   await hydrated(page);
 }
 
-test.describe('admin panel', () => {
+/** Creates the shared test user through the UI. */
+async function createTestUser(page: Page) {
+  await goTo(page, 'Users');
+  await openPanel(page, 'Add a user');
+  await page.getByLabel('Full name').fill(USER_NAME);
+  await page.getByLabel('Email').fill(USER_EMAIL);
+  await page.getByLabel('Password', { exact: true }).fill(USER_PASSWORD);
+  await page.getByRole('button', { name: 'Create user' }).click();
+  await expect(page.getByText(`Created ${USER_NAME}.`)).toBeVisible();
+}
+
+/** Adds the reserved test number through the UI. */
+async function createTestNumber(page: Page) {
+  await goTo(page, 'Phone Numbers');
+  await openPanel(page, 'Add a number manually');
+  await page.getByLabel('Phone number').fill(E2E_NUMBER);
+  await page.getByLabel('Label').fill('E2E line');
+  await page.getByRole('button', { name: 'Add number' }).click();
+  await expect(page.getByText(`Added ${E2E_NUMBER}.`)).toBeVisible();
+}
+
+test.describe('access control', () => {
   test('rejects a wrong password and blocks unauthenticated pages', async ({
     page,
   }) => {
@@ -52,114 +80,172 @@ test.describe('admin panel', () => {
     await page.getByRole('button', { name: 'Sign in' }).click();
 
     await expect(page.getByText('Invalid email or password.')).toBeVisible();
+    await expect(page).toHaveURL(/\/login/);
   });
 
-  test('dashboard shows live counters', async ({ page }) => {
+  test('signs out back to the login screen', async ({ page }) => {
+    await signIn(page);
+    await nav(page).getByRole('button', { name: 'Sign out' }).click();
+    await expect(page).toHaveURL(/\/login/);
+
+    await page.goto('/users');
+    await expect(page).toHaveURL(/\/login/);
+  });
+});
+
+test.describe('theme', () => {
+  test('switches between light and dark and remembers the choice', async ({
+    page,
+  }) => {
     await signIn(page);
 
-    await expect(
-      page.getByRole('heading', { name: 'Dashboard' }),
-    ).toBeVisible();
-    await expect(
-      page.getByText('Phone numbers', { exact: true }),
-    ).toBeVisible();
-    await expect(page.getByText('Calls today')).toBeVisible();
-    await expect(page.getByText('Busiest users')).toBeVisible();
+    const html = page.locator('html');
+    const group = nav(page).getByRole('radiogroup', { name: 'Colour theme' });
+
+    await group.getByRole('radio', { name: 'Dark' }).click();
+    await expect(html).toHaveClass(/dark/);
+
+    // The choice must survive a full page load, with no flash of light.
+    await page.reload();
+    await hydrated(page);
+    await expect(html).toHaveClass(/dark/);
+    await expect(group.getByRole('radio', { name: 'Dark' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+
+    await group.getByRole('radio', { name: 'Light' }).click();
+    await expect(html).not.toHaveClass(/dark/);
+
+    await page.reload();
+    await hydrated(page);
+    await expect(html).not.toHaveClass(/dark/);
   });
 
-  test('assigns a number to a user and releases it again', async ({ page }) => {
+  test('dark mode reaches the signed-out screens too', async ({ page }) => {
     await signIn(page);
-    await goTo(page, 'Phone Numbers');
-    await expect(
-      page.getByRole('heading', { name: 'Phone Numbers' }),
-    ).toBeVisible();
+    await nav(page)
+      .getByRole('radiogroup', { name: 'Colour theme' })
+      .getByRole('radio', { name: 'Dark' })
+      .click();
+    await expect(page.locator('html')).toHaveClass(/dark/);
 
-    // The seeded spare number starts unassigned.
-    const row = page.locator('tr', { hasText: '077-7333' });
-    await expect(row).toBeVisible();
+    await nav(page).getByRole('button', { name: 'Sign out' }).click();
+    await expect(page).toHaveURL(/\/login/);
+    await expect(page.locator('html')).toHaveClass(/dark/);
 
-    const select = row.locator('select');
+    // Leave the browser on the default so later specs are unaffected.
+    await hydrated(page);
+    await page
+      .getByRole('radiogroup', { name: 'Colour theme' })
+      .getByRole('radio', { name: 'Light' })
+      .click();
+  });
+});
+
+test.describe('provisioning', () => {
+  test('creates a user, gives them a number, then takes it back', async ({
+    page,
+  }) => {
+    await signIn(page);
+    await createTestUser(page);
+    await createTestNumber(page);
+
+    const row = page.locator('tr', { hasText: '000-0123' });
+    const select = row.getByLabel('Assigned to');
     await expect(select).toHaveValue('');
 
-    await select.selectOption({ label: 'Priya Nair' });
+    await select.selectOption({ label: USER_NAME });
     await expect(row.getByText('Since')).toBeVisible();
     await expect(select).not.toHaveValue('');
 
     // The users table must reflect the same assignment.
     await goTo(page, 'Users');
-    const priyaRow = page.locator('tr', { hasText: 'Priya Nair' });
-    await expect(priyaRow.getByText('+1 (555) 077-7333')).toBeVisible();
+    const userRow = page.locator('tr', { hasText: USER_NAME });
+    await expect(userRow.getByText('+1 (555) 000-0123')).toBeVisible();
 
-    // Put it back so the test is repeatable.
-    await goTo(page, 'Phone Numbers');
-    const resetRow = page.locator('tr', { hasText: '077-7333' });
-    await resetRow.locator('select').selectOption('');
-    await expect(resetRow.locator('select')).toHaveValue('');
-  });
-
-  test('creates a user with a number, then deletes them', async ({ page }) => {
-    await signIn(page);
-    await goTo(page, 'Users');
-
-    const email = `e2e-user@businessconnect.local`;
-
-    await openPanel(page, 'Add a user');
-    await page.getByLabel('Full name').fill('E2E Test User');
-    await page.getByLabel('Email').fill(email);
-    await page.getByLabel('Password').fill('TestPassword123!');
-    await page.getByRole('button', { name: 'Create user' }).click();
-
-    await expect(page.getByText('Created E2E Test User.')).toBeVisible();
-    const row = page.locator('tr', { hasText: 'E2E Test User' });
-    await expect(row).toBeVisible();
-
-    // The new account must be able to sign in to the mobile API.
+    // The app account can sign in and sees the number the admin gave it.
     const login = await page.request.post('/api/mobile/auth/login', {
-      data: { email, password: 'TestPassword123!' },
+      data: { email: USER_EMAIL, password: USER_PASSWORD },
     });
     expect(login.status()).toBe(200);
     const payload = await login.json();
     expect(payload.token).toBeTruthy();
-    expect(payload.user.email).toBe(email);
+    expect(payload.number?.phoneNumber).toBe(E2E_NUMBER);
 
-    // Clean up through the UI, which also proves delete works.
-    await row.getByRole('link', { name: 'Manage' }).click();
-    await expect(
-      page.getByRole('heading', { name: 'E2E Test User' }),
-    ).toBeVisible();
+    // Release it again.
+    await goTo(page, 'Phone Numbers');
+    const resetRow = page.locator('tr', { hasText: '000-0123' });
+    await resetRow.getByLabel('Assigned to').selectOption('');
+    await expect(resetRow.getByLabel('Assigned to')).toHaveValue('');
+
+    // Which the app sees on its next sign-in.
+    const afterRelease = await page.request.post('/api/mobile/auth/login', {
+      data: { email: USER_EMAIL, password: USER_PASSWORD },
+    });
+    expect((await afterRelease.json()).number).toBeNull();
+
+    // Remove the number, then the user.
+    page.once('dialog', (dialog) => dialog.accept());
+    await resetRow.getByRole('button', { name: 'Remove' }).click();
+    await expect(page.locator('tr', { hasText: '000-0123' })).toHaveCount(0);
+
+    await goTo(page, 'Users');
+    await page
+      .locator('tr', { hasText: USER_NAME })
+      .getByRole('link', { name: `Manage ${USER_NAME}` })
+      .click();
+    await expect(page.getByRole('heading', { name: USER_NAME })).toBeVisible();
 
     page.once('dialog', (dialog) => dialog.accept());
     await page.getByRole('button', { name: 'Delete user' }).click();
 
-    // Deleting sends the admin back to the list, which must no longer show them.
     await expect(page).toHaveURL(/\/users$/);
-    await expect(page.getByText('E2E Test User')).toHaveCount(0);
+    await expect(page.getByText(USER_NAME)).toHaveCount(0);
 
-    // And the account can no longer sign in to the mobile API.
+    // And can no longer sign in.
     const afterDelete = await page.request.post('/api/mobile/auth/login', {
-      data: { email, password: 'TestPassword123!' },
+      data: { email: USER_EMAIL, password: USER_PASSWORD },
     });
     expect(afterDelete.status()).toBe(401);
   });
 
   test('rejects a duplicate email', async ({ page }) => {
     await signIn(page);
-    await goTo(page, 'Users');
+    await createTestUser(page);
 
     await openPanel(page, 'Add a user');
     await page.getByLabel('Full name').fill('Duplicate');
-    await page.getByLabel('Email').fill('alex@businessconnect.local');
-    await page.getByLabel('Password').fill('TestPassword123!');
+    await page.getByLabel('Email').fill(USER_EMAIL);
+    await page.getByLabel('Password', { exact: true }).fill(USER_PASSWORD);
     await page.getByRole('button', { name: 'Create user' }).click();
 
     await expect(
-      page.getByText('alex@businessconnect.local is already registered.'),
+      page.getByText(`${USER_EMAIL} is already registered.`),
     ).toBeVisible();
   });
 
-  test('saves Twilio settings and validates the SID format', async ({
-    page,
-  }) => {
+  test('rejects a short password server-side', async ({ page }) => {
+    await signIn(page);
+    await goTo(page, 'Users');
+    await openPanel(page, 'Add a user');
+
+    await page.getByLabel('Full name').fill('Short Password');
+    await page.getByLabel('Email').fill('e2e-short@businessconnect.local');
+    const password = page.getByLabel('Password', { exact: true });
+    // Drop the browser minlength check to prove the server validates too.
+    await password.evaluate((el) => el.removeAttribute('minlength'));
+    await password.fill('short');
+    await page.getByRole('button', { name: 'Create user' }).click();
+
+    await expect(
+      page.getByText('Password must be at least 8 characters.'),
+    ).toBeVisible();
+  });
+});
+
+test.describe('twilio settings', () => {
+  test('validates and persists credentials', async ({ page }) => {
     await signIn(page);
     await goTo(page, 'Twilio Settings');
 
@@ -191,33 +277,20 @@ test.describe('admin panel', () => {
     await page.getByRole('button', { name: 'Save settings' }).click();
     await expect(page.getByText('Twilio settings saved.')).toBeVisible();
   });
+});
 
-  test('adds a number by hand and removes it', async ({ page }) => {
+test.describe('dashboard', () => {
+  test('shows counters and guides setup while unconfigured', async ({
+    page,
+  }) => {
     await signIn(page);
-    await goTo(page, 'Phone Numbers');
 
-    await openPanel(page, 'Add a number manually');
-    await page.getByLabel('Phone number').fill('+15550000123');
-    await page.getByLabel('Label').fill('E2E spare');
-    await page.getByRole('button', { name: 'Add number' }).click();
+    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
+    await expect(page.getByText('Phone numbers', { exact: true })).toBeVisible();
+    await expect(page.getByText('Calls today')).toBeVisible();
 
-    await expect(page.getByText('Added +15550000123.')).toBeVisible();
-    const row = page.locator('tr', { hasText: '000-0123' });
-    await expect(row).toBeVisible();
-    await expect(row.getByText('E2E spare')).toBeVisible();
-
-    page.once('dialog', (dialog) => dialog.accept());
-    await row.getByRole('button', { name: 'Remove' }).click();
-    await expect(page.locator('tr', { hasText: '000-0123' })).toHaveCount(0);
-    await expect(page.getByLabel('Assigned to').first()).toBeVisible();
-  });
-
-  test('signs out back to the login screen', async ({ page }) => {
-    await signIn(page);
-    await nav(page).getByRole('button', { name: 'Sign out' }).click();
-    await expect(page).toHaveURL(/\/login/);
-
-    await page.goto('/users');
-    await expect(page).toHaveURL(/\/login/);
+    // With no Twilio credentials saved the checklist points at Settings first.
+    await expect(page.getByText('Finish setting up')).toBeVisible();
+    await expect(page.getByText('Connect your Twilio account')).toBeVisible();
   });
 });

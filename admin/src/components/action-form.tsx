@@ -8,6 +8,8 @@ import {
 } from 'react';
 import { useFormStatus } from 'react-dom';
 
+import { IconPlus } from './icons';
+
 export type ActionState = { ok?: string; error?: string };
 export type ServerAction = (
   state: ActionState,
@@ -23,7 +25,7 @@ function Submit({
 }: {
   label: string;
   pendingLabel?: string;
-  variant?: 'primary' | 'secondary' | 'danger';
+  variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
   className?: string;
   confirm?: string;
 }) {
@@ -32,6 +34,7 @@ function Submit({
     primary: 'btn-primary',
     secondary: 'btn-secondary',
     danger: 'btn-danger',
+    ghost: 'btn-ghost',
   } as const;
 
   return (
@@ -83,7 +86,7 @@ export function ActionForm({
   children?: ReactNode;
   submitLabel: string;
   pendingLabel?: string;
-  variant?: 'primary' | 'secondary' | 'danger';
+  variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
   className?: string;
   submitClassName?: string;
   confirm?: string;
@@ -97,7 +100,7 @@ export function ActionForm({
       {!hideFeedback && feedback.error ? (
         <p
           role="alert"
-          className="mb-3 rounded-lg border border-bad/30 bg-bad-soft px-3.5 py-2.5 text-sm text-bad"
+          className="mb-4 rounded-lg border border-bad/25 bg-bad-soft px-3.5 py-2.5 text-sm text-bad"
         >
           {feedback.error}
         </p>
@@ -105,7 +108,7 @@ export function ActionForm({
       {!hideFeedback && feedback.ok ? (
         <p
           role="status"
-          className="mb-3 rounded-lg border border-ok/30 bg-ok-soft px-3.5 py-2.5 text-sm text-ok-ink"
+          className="mb-4 rounded-lg border border-ok/25 bg-ok-soft px-3.5 py-2.5 text-sm text-ok"
         >
           {feedback.ok}
         </p>
@@ -179,7 +182,7 @@ export function AssignSelect({
         value={value}
         disabled={pending}
         onChange={(event) => assign(event.target.value)}
-        className="field max-w-52 py-1.5 text-sm disabled:opacity-60"
+        className="field max-w-52 py-1.5 text-sm"
       >
         <option value="">— Unassigned —</option>
         {users.map((user) => (
@@ -204,9 +207,11 @@ export function AssignSelect({
  */
 export function Disclosure({
   label,
+  description,
   children,
 }: {
   label: string;
+  description?: string;
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -217,14 +222,24 @@ export function Disclosure({
         type="button"
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
-        className="flex w-full cursor-pointer items-center justify-between px-5 py-4 text-left font-semibold text-ink hover:bg-surface-muted"
+        className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left transition-colors hover:bg-sunken"
       >
-        {label}
+        <span className="min-w-0">
+          <span className="block text-[15px] font-semibold tracking-tight text-ink">
+            {label}
+          </span>
+          {description ? (
+            <span className="mt-0.5 block text-sm text-ink-soft">
+              {description}
+            </span>
+          ) : null}
+        </span>
         <span
-          aria-hidden
-          className={`text-ink-soft transition-transform ${open ? 'rotate-45' : ''}`}
+          className={`shrink-0 rounded-md border border-line bg-surface p-1.5 text-ink-soft transition-transform ${
+            open ? 'rotate-45' : ''
+          }`}
         >
-          ＋
+          <IconPlus size={16} />
         </span>
       </button>
       {open ? <div className="border-t border-line p-5">{children}</div> : null}

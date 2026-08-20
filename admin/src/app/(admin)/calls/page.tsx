@@ -1,6 +1,13 @@
 import { Suspense } from 'react';
 
 import {
+  IconCallIncoming,
+  IconCallMissed,
+  IconCallOutgoing,
+  IconClock,
+  IconPhone,
+} from '@/components/icons';
+import {
   Card,
   EmptyState,
   PageHeader,
@@ -43,16 +50,30 @@ export default async function CallsPage({ searchParams }: PageProps<'/calls'>) {
       />
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard label="Calls shown" value={calls.length} />
-        <StatCard label="Missed" value={missed} tone={missed ? 'bad' : 'default'} />
-        <StatCard label="Talk time" value={formatDuration(totalSeconds)} />
+        <StatCard label="Calls shown" value={calls.length} Icon={IconPhone} />
+        <StatCard
+          label="Missed"
+          value={missed}
+          Icon={IconCallMissed}
+          tone={missed ? 'bad' : 'default'}
+        />
+        <StatCard
+          label="Talk time"
+          value={formatDuration(totalSeconds)}
+          Icon={IconClock}
+        />
       </div>
 
       <Card className="mt-6">
         {calls.length === 0 ? (
           <EmptyState
+            Icon={IconPhone}
             title="No calls logged"
-            description="Calls appear here as soon as the app reports them."
+            description={
+              userId
+                ? 'This user has not made or received a call yet.'
+                : 'Calls appear here as soon as the app reports them.'
+            }
           />
         ) : (
           <Table
@@ -68,29 +89,36 @@ export default async function CallsPage({ searchParams }: PageProps<'/calls'>) {
             }
           >
             {calls.map((call) => (
-              <tr key={call.id} className="hover:bg-surface-muted/60">
-                <td className="td font-semibold">{call.userName}</td>
+              <tr key={call.id} className="transition-colors hover:bg-sunken">
+                <td className="td font-medium">{call.userName}</td>
                 <td className="td">
                   {call.contactName ||
                     formatPhone(
                       call.direction === 'outbound' ? call.to : call.from,
                     )}
                 </td>
-                <td className="td text-ink-soft">
+                <td className="td text-ink-soft tabular-nums">
                   {formatPhone(call.from)} → {formatPhone(call.to)}
                 </td>
                 <td className="td">
                   {call.status === 'missed' ? (
-                    <Pill tone="bad" dot>
+                    <Pill tone="bad">
+                      <IconCallMissed size={12} />
                       Missed
                     </Pill>
                   ) : call.direction === 'inbound' ? (
-                    <Pill tone="neutral">Incoming</Pill>
+                    <Pill>
+                      <IconCallIncoming size={12} />
+                      Incoming
+                    </Pill>
                   ) : (
-                    <Pill tone="brand">Outgoing</Pill>
+                    <Pill tone="brand">
+                      <IconCallOutgoing size={12} />
+                      Outgoing
+                    </Pill>
                   )}
                 </td>
-                <td className="td">{call.detail}</td>
+                <td className="td tabular-nums">{call.detail}</td>
                 <td className="td text-ink-soft">{formatDateTime(call.at)}</td>
               </tr>
             ))}

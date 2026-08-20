@@ -9,7 +9,8 @@
     "lint": "eslint",
     "seed": "tsx --env-file=.env.local scripts/seed.ts",
     "e2e": "playwright test",
-    "smoke": "node scripts/smoke-mobile-api.mjs"
+    "smoke": "node scripts/smoke-mobile-api.mjs",
+    "purge": "tsx --env-file=.env.local scripts/purge-demo-data.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

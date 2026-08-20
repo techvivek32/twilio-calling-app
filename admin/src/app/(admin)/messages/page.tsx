@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 
+import { IconAlert, IconMessage } from '@/components/icons';
 import {
   Card,
   EmptyState,
@@ -44,11 +45,16 @@ export default async function MessagesPage({
       />
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard label="Messages shown" value={messages.length} />
+        <StatCard
+          label="Messages shown"
+          value={messages.length}
+          Icon={IconMessage}
+        />
         <StatCard label="Outbound" value={outbound} />
         <StatCard
           label="Failed"
           value={failed}
+          Icon={IconAlert}
           tone={failed ? 'bad' : 'default'}
         />
       </div>
@@ -56,8 +62,13 @@ export default async function MessagesPage({
       <Card className="mt-6">
         {messages.length === 0 ? (
           <EmptyState
+            Icon={IconMessage}
             title="No messages logged"
-            description="Messages appear here as soon as the app sends or receives one."
+            description={
+              userId
+                ? 'This user has not sent or received an SMS yet.'
+                : 'Messages appear here as soon as the app sends or receives one.'
+            }
           />
         ) : (
           <Table
@@ -73,8 +84,8 @@ export default async function MessagesPage({
             }
           >
             {messages.map((message) => (
-              <tr key={message.id} className="hover:bg-surface-muted/60">
-                <td className="td font-semibold">{message.userName}</td>
+              <tr key={message.id} className="transition-colors hover:bg-sunken">
+                <td className="td font-medium">{message.userName}</td>
                 <td className="td">
                   {message.contactName ||
                     formatPhone(
@@ -88,7 +99,7 @@ export default async function MessagesPage({
                 </td>
                 <td className="td">
                   {message.direction === 'inbound' ? (
-                    <Pill tone="neutral">Inbound</Pill>
+                    <Pill>Inbound</Pill>
                   ) : (
                     <Pill tone="brand">Outbound</Pill>
                   )}
