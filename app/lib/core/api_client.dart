@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 
 /// Raised for any non-2xx reply so callers can show the server's own message.
@@ -26,13 +27,22 @@ class ApiClient {
     : _http = httpClient ?? http.Client(),
       _baseUrl = baseUrl ?? defaultBaseUrl;
 
-  /// Android emulators reach the host machine on 10.0.2.2. Override at build
-  /// time with `--dart-define=API_BASE_URL=http://192.168.1.20:3000`, or from
-  /// the server field on the sign-in screen.
-  static const String defaultBaseUrl = String.fromEnvironment(
+  /// Build-time override, e.g.
+  /// `--dart-define=API_BASE_URL=http://192.168.1.20:3000`.
+  static const String _configuredBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://10.0.2.2:3000',
   );
+
+  /// Where the admin panel lives when nothing else has been chosen.
+  ///
+  /// The right guess differs by platform: an Android emulator reaches the host
+  /// machine on 10.0.2.2, while a browser reaches it on localhost. A physical
+  /// phone can use neither, so it is set from the sign-in screen.
+  static String get defaultBaseUrl {
+    if (_configuredBaseUrl.isNotEmpty) return _configuredBaseUrl;
+    if (kIsWeb) return 'http://localhost:3000';
+    return 'http://10.0.2.2:3000';
+  }
 
   static const Duration timeout = Duration(seconds: 20);
 
@@ -136,10 +146,15 @@ class ApiClient {
   /// phone it points nowhere, which is the most common reason sign-in fails.
   static String _hintFor(String address) {
     if (address.contains('10.0.2.2')) {
-      return ' 10.0.2.2 only works on an Android emulator — on a real phone '
-          'use the address shown under Twilio Settings in the admin panel.';
+      return kIsWeb
+          ? ' 10.0.2.2 only works inside an Android emulator — in a browser '
+                'use http://localhost:3000.'
+          : ' 10.0.2.2 only works on an Android emulator — on a real phone '
+                'use the address shown under Twilio Settings in the admin '
+                'panel.';
     }
-    if (address.contains('localhost') || address.contains('127.0.0.1')) {
+    if (!kIsWeb &&
+        (address.contains('localhost') || address.contains('127.0.0.1'))) {
       return ' On a phone, localhost is the phone itself — use the address '
           'shown under Twilio Settings in the admin panel.';
     }

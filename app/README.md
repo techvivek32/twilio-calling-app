@@ -11,8 +11,14 @@ The admin panel must be running first (see `../admin/README.md`).
 
 ```sh
 flutter pub get
-flutter run
+flutter run                 # pick a device
+flutter run -d chrome       # or run it in the browser
 ```
+
+Running in a browser is cross-origin — the app is served from its own port
+while the API is on 3000 — so the admin panel sends CORS headers for
+`/api/mobile/*`. Loopback origins are allowed out of the box; for a deployed
+build, list its origin in `MOBILE_CORS_ORIGINS` on the server.
 
 ### Pointing the app at the server
 
@@ -26,10 +32,14 @@ both addresses on startup:
 
 | Where the app runs | Server address |
 | --- | --- |
-| Android emulator | `http://10.0.2.2:3000` (the default) |
+| Chrome / Edge (`flutter run -d chrome`) | `http://localhost:3000` (the default on web) |
+| Android emulator | `http://10.0.2.2:3000` (the default on Android) |
 | Physical device, USB | `http://127.0.0.1:3000` after `adb reverse tcp:3000 tcp:3000` |
 | Physical device, Wi-Fi | the **Network** address printed above |
 | Production | your `https://` host |
+
+The default adapts to the platform, so running in a browser or on an emulator
+needs no configuration at all.
 
 Open **Server address** on the sign-in screen and press **Test connection**.
 It says plainly whether the address is reachable, whether the thing answering

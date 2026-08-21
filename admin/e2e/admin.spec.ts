@@ -295,6 +295,61 @@ test.describe('dashboard', () => {
   });
 });
 
+test.describe('mobile API cors', () => {
+  // A Flutter web build is served from its own port, so every API call is
+  // cross-origin. Without these headers the browser blocks sign-in outright.
+  test('allows a loopback origin through preflight', async ({ request }) => {
+    const response = await request.fetch('/api/mobile/auth/login', {
+      method: 'OPTIONS',
+      headers: {
+        Origin: 'http://localhost:8080',
+        'Access-Control-Request-Method': 'POST',
+        'Access-Control-Request-Headers': 'content-type',
+      },
+    });
+
+    expect(response.status()).toBe(204);
+    const headers = response.headers();
+    expect(headers['access-control-allow-origin']).toBe('http://localhost:8080');
+    expect(headers['access-control-allow-headers']).toContain('Authorization');
+    expect(headers['vary']).toContain('Origin');
+  });
+
+  test('echoes the origin on the real request too', async ({ request }) => {
+    const response = await request.post('/api/mobile/auth/login', {
+      headers: { Origin: 'http://127.0.0.1:5555' },
+      data: { email: 'nobody@example.com', password: 'wrong' },
+    });
+
+    expect(response.status()).toBe(401);
+    expect(response.headers()['access-control-allow-origin']).toBe(
+      'http://127.0.0.1:5555',
+    );
+  });
+
+  test('refuses an unrelated origin', async ({ request }) => {
+    const response = await request.fetch('/api/mobile/auth/login', {
+      method: 'OPTIONS',
+      headers: {
+        Origin: 'https://evil.example.com',
+        'Access-Control-Request-Method': 'POST',
+      },
+    });
+
+    expect(response.headers()['access-control-allow-origin']).toBeUndefined();
+  });
+
+  test('does not redirect the mobile API to the admin login', async ({
+    request,
+  }) => {
+    // The proxy gates admin pages; it must let API routes answer for
+    // themselves, or the app would receive an HTML redirect instead of JSON.
+    const response = await request.get('/api/mobile/me');
+    expect(response.status()).toBe(401);
+    expect(await response.json()).toHaveProperty('error');
+  });
+});
+
 test.describe('layout', () => {
   test('the sidebar stays pinned while the page scrolls', async ({ page }) => {
     await signIn(page);

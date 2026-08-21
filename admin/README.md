@@ -33,6 +33,7 @@ That keeps your admin accounts and your saved Twilio settings.
 | `AUTH_SECRET` | Signs admin session cookies and mobile bearer tokens |
 | `APP_ENCRYPTION_KEY` | 64 hex chars; AES-256-GCM key for Twilio secrets at rest |
 | `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` / `SEED_ADMIN_NAME` | Used only by `npm run seed` |
+| `MOBILE_CORS_ORIGINS` | Extra origins allowed to call `/api/mobile` from a browser, comma separated. Loopback origins are always allowed. |
 
 ## First run
 
@@ -107,12 +108,21 @@ except login.
 When the admin has not assigned a number, or Twilio is unconfigured, these
 return `409` with a message the app shows verbatim rather than failing silently.
 
+`GET /api/mobile/health` is unauthenticated and backs the app's **Test
+connection** button: it confirms the server is this panel and that MongoDB is
+reachable.
+
+A Flutter web build runs on its own port, so its calls are cross-origin.
+`src/proxy.ts` answers the preflight and echoes the origin for `/api/mobile/*`
+— loopback origins always, plus anything in `MOBILE_CORS_ORIGINS`. Unrelated
+origins get no CORS headers, so the browser blocks them.
+
 ## Testing
 
 ```sh
 npm run lint
 npm run build
-npm run e2e                                   # 9 Playwright tests
+npm run e2e                                   # 15 Playwright tests
 npm run smoke -- <email> <password>           # mobile API, against a real app user
 ```
 
