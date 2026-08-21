@@ -93,10 +93,12 @@ class ApiClient {
     } on TimeoutException {
       throw ApiException(
         'No answer from $target. Make sure the admin panel is running and '
-        'that this device can reach that address.',
+        'that this device can reach that address.${_hintFor(target)}',
       );
     } catch (error) {
-      throw ApiException('Cannot reach $target. ${_describe(error)}');
+      throw ApiException(
+        'Cannot reach $target. ${_describe(error)}${_hintFor(target)}',
+      );
     }
 
     if (response.statusCode != 200) {
@@ -129,6 +131,21 @@ class ApiClient {
     }
   }
 
+
+  /// `10.0.2.2` is the Android emulator's alias for the host machine. On a real
+  /// phone it points nowhere, which is the most common reason sign-in fails.
+  static String _hintFor(String address) {
+    if (address.contains('10.0.2.2')) {
+      return ' 10.0.2.2 only works on an Android emulator — on a real phone '
+          'use the address shown under Twilio Settings in the admin panel.';
+    }
+    if (address.contains('localhost') || address.contains('127.0.0.1')) {
+      return ' On a phone, localhost is the phone itself — use the address '
+          'shown under Twilio Settings in the admin panel.';
+    }
+    return '';
+  }
+
   static String _normalise(String value) {
     final trimmed = value.trim();
     return trimmed.endsWith('/')
@@ -147,10 +164,12 @@ class ApiClient {
     } on TimeoutException {
       throw ApiException(
         'The server at $_baseUrl did not respond. Check the address and that '
-        'the admin panel is running.',
+        'the admin panel is running.${_hintFor(_baseUrl)}',
       );
     } catch (error) {
-      throw ApiException('Cannot reach $_baseUrl. ${_describe(error)}');
+      throw ApiException(
+        'Cannot reach $_baseUrl. ${_describe(error)}${_hintFor(_baseUrl)}',
+      );
     }
 
     Map<String, dynamic> decoded = const {};

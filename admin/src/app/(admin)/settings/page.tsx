@@ -9,6 +9,7 @@ import {
   formatDateTime,
 } from '@/components/ui';
 import { decryptSecret, maskSecret } from '@/lib/crypto';
+import { serverAddresses } from '@/lib/network';
 import { loadSettings } from '@/lib/twilio';
 
 import { saveSettingsAction, testConnectionAction } from './actions';
@@ -17,6 +18,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function SettingsPage() {
   const settings = await loadSettings();
+  const addresses = serverAddresses();
 
   const authTokenSet = Boolean(settings.authTokenEnc);
   const apiSecretSet = Boolean(settings.apiKeySecretEnc);
@@ -232,8 +234,37 @@ export default async function SettingsPage() {
 
           <Card>
             <CardHeader
+              title="Server address"
+              description="Type one of these into Server address on the app's sign-in screen, then press Test connection."
+            />
+            <ul className="divide-y divide-line">
+              {addresses.map((address) => (
+                <li key={address.url} className="px-5 py-3">
+                  <p className="font-mono text-sm text-ink">{address.url}</p>
+                  <p className="mt-0.5 text-xs text-ink-muted">
+                    {address.external
+                      ? `A phone on the same network as "${address.label}"`
+                      : address.label}
+                  </p>
+                </li>
+              ))}
+              {addresses.every((address) => !address.external) ? (
+                <li className="px-5 py-3 text-xs leading-relaxed text-warn">
+                  This machine has no network address right now, so a physical
+                  phone cannot reach it. Connect to Wi-Fi and reload.
+                </li>
+              ) : null}
+            </ul>
+            <p className="border-t border-line px-5 py-3 text-xs leading-relaxed text-ink-muted">
+              A network address is handed out by DHCP and changes when this
+              machine reconnects — if the app stops connecting, check back here.
+            </p>
+          </Card>
+
+          <Card>
+            <CardHeader
               title="Mobile API"
-              description="Point the Flutter app at this server. Users sign in with the credentials you set on the Users page."
+              description="Endpoints the Flutter app calls. Users sign in with the credentials you set on the Users page."
             />
             <ul className="divide-y divide-line">
               {[

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:business_connect/core/api_client.dart';
 import 'package:business_connect/core/format.dart';
 import 'package:business_connect/core/theme.dart';
@@ -13,6 +15,7 @@ import 'package:business_connect/screens/settings_screen.dart';
 import 'package:business_connect/screens/shell_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/testing.dart';
 
 import 'fake_server.dart';
 
@@ -539,6 +542,25 @@ void main() {
             (error) => error.message,
             'message',
             contains('not a valid address'),
+          ),
+        ),
+      );
+    });
+
+    test('explains that 10.0.2.2 is emulator-only when it fails', () async {
+      // Stands in for a real phone, where 10.0.2.2 resolves to nothing.
+      final api = ApiClient(
+        httpClient: MockClient((_) async => throw const SocketException('no route')),
+        baseUrl: 'http://10.0.2.2:3000',
+      );
+
+      expect(
+        () => api.ping(),
+        throwsA(
+          isA<ApiException>().having(
+            (error) => error.message,
+            'message',
+            contains('only works on an Android emulator'),
           ),
         ),
       );
