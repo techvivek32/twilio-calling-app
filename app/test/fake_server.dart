@@ -27,6 +27,11 @@ class FakeServer {
 
   static final String _now = DateTime.now().toUtc().toIso8601String();
 
+  /// Overrides for the health probe, so tests can stand in for a wrong
+  /// address or an admin panel that cannot reach MongoDB.
+  Map<String, dynamic>? healthBody;
+  int healthStatus = 200;
+
   Map<String, dynamic>? get _number => assignNumber
       ? {
           'id': 'num1',
@@ -52,6 +57,14 @@ class FakeServer {
           : jsonDecode(request.body) as Map<String, dynamic>;
 
       switch ('${request.method} $path') {
+        case 'GET /api/mobile/health':
+          if (healthBody != null) return _json(healthBody!, healthStatus);
+          return _json({
+            'ok': true,
+            'service': 'business-connect-admin',
+            'database': true,
+          }, healthStatus);
+
         case 'POST /api/mobile/auth/login':
           if (body['password'] != 'Password123!') {
             return _json({'error': 'Invalid email or password.'}, 401);

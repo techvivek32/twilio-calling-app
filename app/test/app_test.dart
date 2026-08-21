@@ -1,3 +1,4 @@
+import 'package:business_connect/core/api_client.dart';
 import 'package:business_connect/core/format.dart';
 import 'package:business_connect/core/theme.dart';
 import 'package:business_connect/screens/call_history_screen.dart';
@@ -453,6 +454,113 @@ void main() {
       await tester.tap(find.text('Settings'));
       await tester.pumpAndSettle();
       expect(find.text('Connection Status'), findsOneWidget);
+    });
+  });
+
+  group('server address check', () {
+    test('accepts a healthy Business Connect server', () async {
+      final server = FakeServer();
+      final api = ApiClient(
+        httpClient: server.client(),
+        baseUrl: 'http://test.local',
+      );
+
+      await api.ping();
+      expect(server.requests, contains('GET /api/mobile/health'));
+    });
+
+    test('probes a candidate address without switching to it', () async {
+      final server = FakeServer();
+      final api = ApiClient(
+        httpClient: server.client(),
+        baseUrl: 'http://test.local',
+      );
+
+      await api.ping(candidate: 'http://192.168.1.20:3000/');
+      // The saved address is only committed once the user signs in.
+      expect(api.baseUrl, 'http://test.local');
+    });
+
+    test('rejects an address that is not the admin panel', () async {
+      final server = FakeServer()
+        ..healthBody = {'hello': 'some other service'};
+      final api = ApiClient(
+        httpClient: server.client(),
+        baseUrl: 'http://test.local',
+      );
+
+      expect(
+        () => api.ping(),
+        throwsA(
+          isA<ApiException>().having(
+            (error) => error.message,
+            'message',
+            contains('not the admin panel'),
+          ),
+        ),
+      );
+    });
+
+    test('reports when the panel cannot reach its database', () async {
+      final server = FakeServer()
+        ..healthBody = {
+          'ok': true,
+          'service': 'business-connect-admin',
+          'database': false,
+        };
+      final api = ApiClient(
+        httpClient: server.client(),
+        baseUrl: 'http://test.local',
+      );
+
+      expect(
+        () => api.ping(),
+        throwsA(
+          isA<ApiException>().having(
+            (error) => error.message,
+            'message',
+            contains('Start MongoDB'),
+          ),
+        ),
+      );
+    });
+
+    test('rejects a bare host:port, which is the usual typo', () async {
+      final server = FakeServer();
+      final api = ApiClient(
+        httpClient: server.client(),
+        baseUrl: 'http://test.local',
+      );
+
+      expect(
+        () => api.ping(candidate: '10.0.2.2:3000'),
+        throwsA(
+          isA<ApiException>().having(
+            (error) => error.message,
+            'message',
+            contains('not a valid address'),
+          ),
+        ),
+      );
+    });
+
+    test('rejects a hostname with no scheme', () async {
+      final server = FakeServer();
+      final api = ApiClient(
+        httpClient: server.client(),
+        baseUrl: 'http://test.local',
+      );
+
+      expect(
+        () => api.ping(candidate: 'my-server'),
+        throwsA(
+          isA<ApiException>().having(
+            (error) => error.message,
+            'message',
+            contains('full address'),
+          ),
+        ),
+      );
     });
   });
 }

@@ -27,7 +27,10 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscure = true;
   bool _remember = true;
   bool _busy = false;
+  bool _testing = false;
   String? _error;
+  String? _serverOk;
+  String? _serverError;
 
   @override
   void dispose() {
@@ -291,6 +294,41 @@ class _LoginScreenState extends State<LoginScreen> {
                             color: AppColors.textMuted,
                           ),
                         ),
+                        const SizedBox(height: AppSpace.md),
+                        OutlinedButton.icon(
+                          onPressed: _busy || _testing ? null : _testConnection,
+                          icon: _testing
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.2,
+                                  ),
+                                )
+                              : const Icon(Icons.wifi_tethering, size: 20),
+                          label: Text(
+                            _testing ? 'Testing…' : 'Test connection',
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size.fromHeight(48),
+                          ),
+                        ),
+                        if (_serverOk != null) ...[
+                          const SizedBox(height: AppSpace.sm),
+                          _ServerNote(
+                            message: _serverOk!,
+                            icon: Icons.check_circle_outline,
+                            color: AppColors.success,
+                          ),
+                        ],
+                        if (_serverError != null) ...[
+                          const SizedBox(height: AppSpace.sm),
+                          _ServerNote(
+                            message: _serverError!,
+                            icon: Icons.error_outline,
+                            color: AppColors.danger,
+                          ),
+                        ],
                       ],
                     ),
                   ],
@@ -301,6 +339,31 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       ),
     );
+  }
+
+  /// Verifies the typed address before the user tries to sign in, so a wrong
+  /// host is obvious here rather than looking like bad credentials.
+  Future<void> _testConnection() async {
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _testing = true;
+      _serverOk = null;
+      _serverError = null;
+    });
+
+    final address = _serverController.text.trim();
+    try {
+      await _session.api.ping(candidate: address.isEmpty ? null : address);
+      if (!mounted) return;
+      setState(() {
+        _serverOk = 'Connected to ${address.isEmpty ? _session.serverUrl : address}.';
+      });
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      setState(() => _serverError = error.message);
+    } finally {
+      if (mounted) setState(() => _testing = false);
+    }
   }
 
   void _showPasswordHelp() {
@@ -330,6 +393,36 @@ class _FieldLabel extends StatelessWidget {
         fontWeight: FontWeight.w700,
         color: AppColors.textPrimary,
       ),
+    );
+  }
+}
+
+/// Result line under the "Test connection" button.
+class _ServerNote extends StatelessWidget {
+  const _ServerNote({
+    required this.message,
+    required this.icon,
+    required this.color,
+  });
+
+  final String message;
+  final IconData icon;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 18, color: color),
+        const SizedBox(width: AppSpace.sm),
+        Expanded(
+          child: Text(
+            message,
+            style: TextStyle(fontSize: 13, height: 1.4, color: color),
+          ),
+        ),
+      ],
     );
   }
 }

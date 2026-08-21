@@ -43,12 +43,7 @@ class ApiClient {
 
   String get baseUrl => _baseUrl;
 
-  set baseUrl(String value) {
-    final trimmed = value.trim();
-    _baseUrl = trimmed.endsWith('/')
-        ? trimmed.substring(0, trimmed.length - 1)
-        : trimmed;
-  }
+  set baseUrl(String value) => _baseUrl = _normalise(value);
 
   Map<String, String> get _headers => {
     'Content-Type': 'application/json',
@@ -69,6 +64,77 @@ class ApiClient {
       body: jsonEncode(body ?? const {}),
     ),
   );
+
+  /// Checks that [candidate] (or the current address) is a reachable Business
+  /// Connect server. Uses a short timeout so a wrong address fails fast.
+  Future<void> ping({String? candidate}) async {
+    final target = candidate == null ? _baseUrl : _normalise(candidate);
+    if (target.isEmpty) {
+      throw ApiException('Enter a server address first.');
+    }
+
+    final Uri uri;
+    try {
+      uri = Uri.parse('$target/api/mobile/health');
+    } on FormatException {
+      throw ApiException('"$target" is not a valid address.');
+    }
+    if (!uri.hasScheme || !uri.host.isNotEmpty) {
+      throw ApiException(
+        'Include the full address, for example http://10.0.2.2:3000',
+      );
+    }
+
+    final http.Response response;
+    try {
+      response = await _http
+          .get(uri, headers: const {'Accept': 'application/json'})
+          .timeout(const Duration(seconds: 8));
+    } on TimeoutException {
+      throw ApiException(
+        'No answer from $target. Make sure the admin panel is running and '
+        'that this device can reach that address.',
+      );
+    } catch (error) {
+      throw ApiException('Cannot reach $target. ${_describe(error)}');
+    }
+
+    if (response.statusCode != 200) {
+      throw ApiException(
+        'Something answered at $target, but it is not the admin panel '
+        '(HTTP ${response.statusCode}).',
+      );
+    }
+
+    Map<String, dynamic> body = const {};
+    try {
+      final parsed = jsonDecode(response.body);
+      if (parsed is Map<String, dynamic>) body = parsed;
+    } on FormatException {
+      throw ApiException(
+        'Something answered at $target, but it is not the admin panel.',
+      );
+    }
+
+    if (body['service'] != 'business-connect-admin') {
+      throw ApiException(
+        'Something answered at $target, but it is not the admin panel.',
+      );
+    }
+    if (body['database'] != true) {
+      throw ApiException(
+        'The admin panel is up but cannot reach its database. Start MongoDB '
+        'and try again.',
+      );
+    }
+  }
+
+  static String _normalise(String value) {
+    final trimmed = value.trim();
+    return trimmed.endsWith('/')
+        ? trimmed.substring(0, trimmed.length - 1)
+        : trimmed;
+  }
 
   Uri _uri(String path) => Uri.parse('$_baseUrl$path');
 

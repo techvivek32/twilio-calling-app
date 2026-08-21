@@ -16,20 +16,50 @@ flutter run
 
 ### Pointing the app at the server
 
+The admin panel must be running (`npm run dev` from the repo root). It prints
+both addresses on startup:
+
+```
+- Local:    http://localhost:3000
+- Network:  http://10.212.112.52:3000     <- what a physical phone needs
+```
+
 | Where the app runs | Server address |
 | --- | --- |
 | Android emulator | `http://10.0.2.2:3000` (the default) |
-| Physical device | `http://<your-computer-LAN-IP>:3000` |
+| Physical device, USB | `http://127.0.0.1:3000` after `adb reverse tcp:3000 tcp:3000` |
+| Physical device, Wi-Fi | the **Network** address printed above |
 | Production | your `https://` host |
 
-Three ways to set it, in order of precedence:
+Open **Server address** on the sign-in screen and press **Test connection**.
+It says plainly whether the address is reachable, whether the thing answering
+is actually the admin panel, and whether that panel can reach MongoDB — so a
+wrong address never looks like a wrong password.
 
-1. In the app — open **Server address** on the sign-in screen. This is the one
-   to use for the prebuilt APKs.
+> **The Wi-Fi address changes.** Your computer's LAN IP is handed out by DHCP
+> and will differ after reconnecting or switching networks, at which point the
+> saved address stops working. `adb reverse tcp:3000 tcp:3000` over USB avoids
+> this entirely: the phone then reaches the server on `http://127.0.0.1:3000`
+> no matter what the Wi-Fi does.
+
+Three ways to set the address, in order of precedence:
+
+1. In the app — **Server address** on the sign-in screen. This is the one to
+   use for a prebuilt APK.
 2. At build time — `flutter run --dart-define=API_BASE_URL=http://192.168.1.20:3000`
 3. Otherwise the default above applies.
 
 The address is saved with the session, so it survives restarts.
+
+### If sign-in fails
+
+| What you see | Cause |
+| --- | --- |
+| "did not respond" / "could not open a connection" | The panel is not running, or the address is wrong for this device. Press **Test connection**. |
+| "not the admin panel" | Something else is on that port. |
+| "cannot reach its database" | The panel is up but MongoDB is not running. |
+| "Invalid email or password" | The account really is wrong — create or reset it on the panel's **Users** page. |
+| Signed in, but no number | The admin has not assigned this account a number yet (**Phone Numbers** page). |
 
 ## Screens
 

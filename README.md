@@ -29,9 +29,14 @@ Sign in to the admin panel with the `SEED_ADMIN_*` credentials from your
 `.env.local`. There is no demo data: create your own app users on the **Users**
 page, and they sign in to the mobile app with those credentials.
 
-On a physical phone, set **Server address** on the app's sign-in screen to
-`http://<your-computer-LAN-IP>:3000`. An Android emulator works with the
-default `http://10.0.2.2:3000`.
+`npm run dev` also works from the repo root; it forwards to `admin/`.
+
+An Android emulator reaches the server on the default `http://10.0.2.2:3000`.
+On a physical phone, open **Server address** on the app's sign-in screen, enter
+the **Network** address that `npm run dev` printed, and press **Test
+connection**. Note that this LAN IP changes when your computer reconnects to
+Wi-Fi — over USB, `adb reverse tcp:3000 tcp:3000` lets the phone use
+`http://127.0.0.1:3000` permanently instead.
 
 ## How the two halves fit together
 
