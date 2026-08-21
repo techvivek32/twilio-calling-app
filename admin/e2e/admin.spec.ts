@@ -294,3 +294,49 @@ test.describe('dashboard', () => {
     await expect(page.getByText('Connect your Twilio account')).toBeVisible();
   });
 });
+
+test.describe('layout', () => {
+  test('the sidebar stays pinned while the page scrolls', async ({ page }) => {
+    await signIn(page);
+    await goTo(page, 'Twilio Settings');
+
+    const aside = nav(page);
+    const before = await aside.boundingBox();
+    expect(before).not.toBeNull();
+
+    // The page must actually overflow, or this proves nothing.
+    const overflow = await page.evaluate(
+      () => document.body.scrollHeight - window.innerHeight,
+    );
+    expect(overflow).toBeGreaterThan(100);
+
+    await page.evaluate(() => window.scrollTo(0, 400));
+    await expect
+      .poll(async () => page.evaluate(() => window.scrollY))
+      .toBeGreaterThan(0);
+
+    // `html`/`body` must grow with the content; capping them at the viewport
+    // leaves the sticky rail no room to travel and it scrolls away.
+    const after = await aside.boundingBox();
+    expect(after!.y).toBeCloseTo(before!.y, 0);
+  });
+
+  test('the mobile header stays pinned while the page scrolls', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 420, height: 780 });
+    await signIn(page);
+
+    const header = page.getByRole('banner');
+    const before = await header.boundingBox();
+    expect(before).not.toBeNull();
+
+    await page.evaluate(() => window.scrollTo(0, 400));
+    await expect
+      .poll(async () => page.evaluate(() => window.scrollY))
+      .toBeGreaterThan(0);
+
+    const after = await header.boundingBox();
+    expect(after!.y).toBeCloseTo(before!.y, 0);
+  });
+});
