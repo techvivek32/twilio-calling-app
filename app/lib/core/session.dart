@@ -181,6 +181,18 @@ class AppSession extends ChangeNotifier {
     return CallProgress.fromJson(response);
   }
 
+  /// Saves the phone that click-to-call should ring first.
+  Future<void> setPersonalNumber(String number) async {
+    final response = await api.post('/api/mobile/me/phone', {
+      'personalNumber': number,
+    });
+    final saved = response['personalNumber']?.toString() ?? '';
+    if (_user != null) {
+      _user = _user!.copyWith(personalNumber: saved);
+      await _persist();
+    }
+  }
+
   /// Records a finished call so it appears in history and the admin panel.
   Future<void> logCall({
     required String to,

@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 
+import '../core/api_client.dart';
+import '../core/countries.dart';
 import '../core/session.dart';
 import '../core/theme.dart';
 import '../models/models.dart';
 import '../widgets/async_view.dart';
 import '../widgets/common.dart';
+import '../widgets/country_picker.dart';
 import 'permissions_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -115,6 +118,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   const SizedBox(height: AppSpace.lg),
                   _NumberCard(summary: summary),
+                  const SizedBox(height: AppSpace.lg),
+                  _MyPhoneCard(session: _session),
                   const SizedBox(height: AppSpace.lg),
                   _AccountCard(summary: summary, serverUrl: _session.serverUrl),
                   const SizedBox(height: AppSpace.lg),
@@ -383,6 +388,180 @@ class _InfoCard extends StatelessWidget {
               height: 1.4,
               color: AppColors.textSecondary,
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Lets the user set the phone that click-to-call rings first.
+///
+/// Without it the dialler cannot place a call, so this is the one setting the
+/// app must let a user fix themselves rather than waiting on an admin.
+class _MyPhoneCard extends StatefulWidget {
+  const _MyPhoneCard({required this.session});
+
+  final AppSession session;
+
+  @override
+  State<_MyPhoneCard> createState() => _MyPhoneCardState();
+}
+
+class _MyPhoneCardState extends State<_MyPhoneCard> {
+  late final TextEditingController _controller;
+  late Country _country;
+  bool _saving = false;
+  String? _error;
+  String? _saved;
+
+  @override
+  void initState() {
+    super.initState();
+
+    final stored = widget.session.user?.personalNumber ?? '';
+    if (stored.isNotEmpty) {
+      final (country, national) = CountryLookup.split(stored);
+      _country = country;
+      _controller = TextEditingController(text: national);
+    } else {
+      _country =
+          CountryLookup.byIso(widget.session.dialCountryIso ?? '') ??
+          kDefaultCountry;
+      _controller = TextEditingController();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    FocusScope.of(context).unfocus();
+    final number = toE164(_country, _controller.text);
+
+    if (number.isNotEmpty && !looksLikeE164(number)) {
+      setState(
+        () => _error =
+            'That is not a complete ${_country.name} number. Check the digits '
+            'and the country code.',
+      );
+      return;
+    }
+
+    setState(() {
+      _saving = true;
+      _error = null;
+      _saved = null;
+    });
+
+    try {
+      await widget.session.setPersonalNumber(number);
+      if (!mounted) return;
+      setState(
+        () => _saved = number.isEmpty
+            ? 'Cleared. You cannot place calls until you set a number.'
+            : 'Saved. Calls will ring $number first.',
+      );
+    } on ApiException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final current = widget.session.user?.personalNumber ?? '';
+
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.smartphone_outlined,
+                size: 22,
+                color: AppColors.primary,
+              ),
+              const SizedBox(width: AppSpace.sm),
+              const Expanded(
+                child: Text(
+                  'Your phone',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+                ),
+              ),
+              if (current.isEmpty)
+                const StatusPill.danger('Required')
+              else
+                const StatusPill.success('Set'),
+            ],
+          ),
+          const SizedBox(height: AppSpace.sm),
+          const Text(
+            'A call rings this phone first, then connects the person you '
+            'dialled — showing your business number as the caller ID.',
+            style: TextStyle(
+              fontSize: 14.5,
+              height: 1.4,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: AppSpace.md),
+          Row(
+            children: [
+              CountryCodeButton(
+                country: _country,
+                onChanged: (country) => setState(() => _country = country),
+                enabled: !_saving,
+                dense: true,
+              ),
+              const SizedBox(width: AppSpace.sm),
+              Expanded(
+                child: TextField(
+                  controller: _controller,
+                  enabled: !_saving,
+                  keyboardType: TextInputType.phone,
+                  onSubmitted: (_) => _save(),
+                  decoration: const InputDecoration(
+                    hintText: '98765 43210',
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: AppSpace.sm),
+            Text(
+              _error!,
+              style: const TextStyle(
+                fontSize: 13.5,
+                height: 1.4,
+                color: AppColors.danger,
+              ),
+            ),
+          ],
+          if (_saved != null) ...[
+            const SizedBox(height: AppSpace.sm),
+            Text(
+              _saved!,
+              style: const TextStyle(
+                fontSize: 13.5,
+                height: 1.4,
+                color: AppColors.success,
+              ),
+            ),
+          ],
+          const SizedBox(height: AppSpace.md),
+          FilledButton(
+            onPressed: _saving ? null : _save,
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(50),
+            ),
+            child: Text(_saving ? 'Saving…' : 'Save my phone'),
           ),
         ],
       ),

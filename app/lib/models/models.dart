@@ -54,19 +54,40 @@ extension MessageStatusX on MessageStatus {
 
 @immutable
 class AppUser {
-  const AppUser({required this.id, required this.name, required this.email});
+  const AppUser({
+    required this.id,
+    required this.name,
+    required this.email,
+    this.personalNumber = '',
+  });
 
   factory AppUser.fromJson(Map<String, dynamic> json) => AppUser(
     id: _string(json['id']),
     name: _string(json['name']),
     email: _string(json['email']),
+    personalNumber: _string(json['personalNumber']),
   );
 
   final String id;
   final String name;
   final String email;
 
-  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'email': email};
+  /// The phone click-to-call rings first; empty until the user sets it.
+  final String personalNumber;
+
+  AppUser copyWith({String? personalNumber}) => AppUser(
+    id: id,
+    name: name,
+    email: email,
+    personalNumber: personalNumber ?? this.personalNumber,
+  );
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'email': email,
+    'personalNumber': personalNumber,
+  };
 
   /// First name only, for the "Good Morning, Alex" greeting.
   String get firstName => name.trim().split(RegExp(r'\s+')).first;

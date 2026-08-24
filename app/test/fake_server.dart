@@ -27,6 +27,13 @@ class FakeServer {
 
   static final String _now = DateTime.now().toUtc().toIso8601String();
 
+  /// Bodies posted to /api/mobile/me/phone, for assertions.
+  final List<Map<String, dynamic>> phonePayloads = [];
+
+  /// The user's own phone. Empty means click-to-call is blocked, which is
+  /// what a fresh account looks like.
+  String personalNumber = '';
+
   /// Twilio call status returned by /api/mobile/calls/status, so tests can
   /// walk a call through dialling, ringing, answered and ended.
   String callStatus = 'queued';
@@ -62,6 +69,17 @@ class FakeServer {
           : jsonDecode(request.body) as Map<String, dynamic>;
 
       switch ('${request.method} $path') {
+        case 'POST /api/mobile/me/phone':
+          phonePayloads.add(Map<String, dynamic>.from(body));
+          final wanted = (body['personalNumber'] ?? '').toString();
+          if (wanted.isNotEmpty && !RegExp(r'^\+[1-9]\d{7,14}$').hasMatch(wanted)) {
+            return _json({
+              'error': 'Enter your phone in full international form.',
+            }, 422);
+          }
+          personalNumber = wanted;
+          return _json({'personalNumber': personalNumber});
+
         case 'GET /api/mobile/calls/status':
           const dialling = {'queued', 'initiated'};
           const finished = {
@@ -100,6 +118,7 @@ class FakeServer {
               'name': 'Alex Morgan',
               'email': body['email'],
               'role': 'user',
+              'personalNumber': personalNumber,
             },
             'number': _number,
           });
@@ -110,6 +129,7 @@ class FakeServer {
               'id': 'u1',
               'name': 'Alex Morgan',
               'email': 'alex@businessconnect.local',
+              'personalNumber': personalNumber,
             },
             'number': _number,
             'twilioConfigured': true,
@@ -187,6 +207,13 @@ class FakeServer {
           return _json({'call': body}, 201);
 
         case 'POST /api/mobile/calls/place':
+          if (personalNumber.isEmpty) {
+            return _json({
+              'error':
+                  'Add your own phone number in Settings first — the call '
+                  'rings your phone, then connects the person you dialled.',
+            }, 409);
+          }
           placedCalls.add(body);
           if (!assignNumber) {
             return _json({

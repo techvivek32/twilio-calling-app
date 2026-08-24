@@ -26,7 +26,11 @@ class AsyncViewState<T> extends State<AsyncView<T>> {
   late Future<T> _future = widget.load();
 
   Future<void> reload() async {
-    setState(() => _future = widget.load());
+    // A block body, not an arrow: an arrow returns the assigned Future and
+    // setState rejects a callback that returns one.
+    setState(() {
+      _future = widget.load();
+    });
     await _future.catchError((Object error) => throw error);
   }
 
@@ -47,7 +51,9 @@ class AsyncViewState<T> extends State<AsyncView<T>> {
         if (snapshot.hasError) {
           return ErrorPanel(
             error: snapshot.error!,
-            onRetry: () => setState(() => _future = widget.load()),
+            onRetry: () => setState(() {
+              _future = widget.load();
+            }),
             padding: widget.padding,
           );
         }
@@ -55,7 +61,9 @@ class AsyncViewState<T> extends State<AsyncView<T>> {
         return widget.builder(
           context,
           snapshot.data as T,
-          () async => setState(() => _future = widget.load()),
+          () async => setState(() {
+            _future = widget.load();
+          }),
         );
       },
     );

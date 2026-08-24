@@ -249,7 +249,7 @@ void main() {
 
     testWidgets('dialer places the call through the API', (tester) async {
       usePhoneViewport(tester);
-      final server = FakeServer();
+      final server = FakeServer()..personalNumber = '+919876543210';
       final session = await signedInSession(server);
 
       await tester.pumpWidget(
@@ -292,9 +292,36 @@ void main() {
       expect(find.text('00:01'), findsOneWidget);
     });
 
+
+    testWidgets('a call is refused until the user sets their own phone', (
+      tester,
+    ) async {
+      usePhoneViewport(tester);
+      // A fresh account has no phone to ring.
+      final server = FakeServer();
+      final session = await signedInSession(server);
+
+      await tester.pumpWidget(
+        wrap(DialerScreen(session: session, initialNumber: '+12025550199')),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Call'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // The reason must say what to do, not just that it failed. It appears
+      // both on the call screen and in the snackbar over it.
+      expect(
+        find.textContaining('Add your own phone number in Settings'),
+        findsWidgets,
+      );
+      expect(find.text('Not connected'), findsWidgets);
+    });
+
     testWidgets('an unanswered call reports why it ended', (tester) async {
       usePhoneViewport(tester);
-      final server = FakeServer();
+      final server = FakeServer()..personalNumber = '+919876543210';
       final session = await signedInSession(server);
 
       await tester.pumpWidget(
@@ -468,6 +495,40 @@ void main() {
       expect(find.text('Sarah Jenkins'), findsOneWidget);
       expect(find.text('Acme Corporation'), findsOneWidget);
       expect(find.text('+1 (202) 555-0199'), findsOneWidget);
+    });
+
+
+    testWidgets('the user can set their own phone from settings', (
+      tester,
+    ) async {
+      usePhoneViewport(tester, size: const Size(390, 900));
+      final server = FakeServer();
+      final session = await signedInSession(server);
+
+      await tester.pumpWidget(wrap(SettingsScreen(session: session)));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Your phone'),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      // A fresh account is told this is required.
+      expect(find.text('Required'), findsOneWidget);
+
+      await tester.enterText(
+        find.widgetWithText(TextField, '98765 43210'),
+        '9876543210',
+      );
+      await tester.ensureVisible(find.text('Save my phone'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Save my phone'));
+      await tester.pumpAndSettle();
+
+      // Saved in full international form, using the picked country.
+      expect(server.personalNumber, '+919876543210');
+      expect(session.user?.personalNumber, '+919876543210');
+      expect(find.textContaining('Saved.'), findsOneWidget);
     });
 
     testWidgets('settings shows the assigned number and capabilities', (
