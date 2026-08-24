@@ -176,6 +176,23 @@ export default async function UserDetailPage({
                   </select>
                 </div>
                 <div className="sm:col-span-2">
+                  <label className="field-label" htmlFor="u-personal">
+                    Their own phone
+                  </label>
+                  <input
+                    id="u-personal"
+                    name="personalNumber"
+                    defaultValue={user.personalNumber}
+                    className="field"
+                    placeholder="+91 98765 43210"
+                  />
+                  <p className="mt-1.5 text-xs leading-relaxed text-ink-muted">
+                    Calls from the app ring this phone first, then connect the
+                    person they dialled — with their business number shown as
+                    the caller ID. Without it they cannot place calls.
+                  </p>
+                </div>
+                <div className="sm:col-span-2">
                   <label className="field-label" htmlFor="u-password">
                     New password
                   </label>

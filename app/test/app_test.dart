@@ -257,7 +257,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('+1 20255 50199'), findsOneWidget);
+      expect(find.text('20255 50199'), findsOneWidget);
+      expect(find.text('+1'), findsOneWidget);
       expect(find.text('Acme Corporation'), findsOneWidget);
 
       await tester.tap(find.byTooltip('Call'));
@@ -332,7 +333,7 @@ void main() {
       await tester.tap(find.text('7'));
       await tester.pump();
 
-      expect(find.text('+1 20255 50197'), findsOneWidget);
+      expect(find.text('20255 50197'), findsOneWidget);
     });
 
     testWidgets('dialer reports when no number is assigned', (tester) async {
@@ -659,6 +660,36 @@ void main() {
           ),
         ),
       );
+    });
+  });
+
+  group('layout', () {
+    // The dialler packs a country button, the number and a backspace into one
+    // row; on a small phone that row must still fit.
+    testWidgets('the dialler fits a 360px phone', (tester) async {
+      usePhoneViewport(tester, size: const Size(360, 720));
+      final session = await signedInSession(FakeServer());
+
+      final errors = <FlutterErrorDetails>[];
+      final previous = FlutterError.onError;
+      FlutterError.onError = errors.add;
+
+      await tester.pumpWidget(
+        wrap(
+          DialerScreen(session: session, initialNumber: '+919876543210'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      FlutterError.onError = previous;
+      for (final error in errors) {
+        debugPrint(error.toString());
+      }
+      expect(errors, isEmpty);
+
+      // Country and number sit side by side rather than stacked.
+      expect(find.text('+91'), findsOneWidget);
+      expect(find.text('98765 43210'), findsOneWidget);
     });
   });
 }

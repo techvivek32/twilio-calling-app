@@ -112,25 +112,51 @@ export async function sendSms(params: {
   return { sid: message.sid, status: message.status };
 }
 
+function escapeXml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 /**
- * Places an outbound call that bridges the dialled party to the user's
- * device. Requires a webhook base URL so Twilio can fetch TwiML.
+ * TwiML for the second leg of a click-to-call: once the user's phone answers,
+ * dial the person they wanted, showing their business number.
+ *
+ * It must dial `connectTo` and never the leg Twilio already created, or the
+ * far end is rung twice and the handset shows the duplicate on hold.
+ */
+export function buildBridgeTwiml(callerId: string, connectTo: string): string {
+  return (
+    `<Response><Dial callerId="${escapeXml(callerId)}" answerOnBridge="true">` +
+    `${escapeXml(connectTo)}</Dial></Response>`
+  );
+}
+
+/**
+ * Click-to-call: rings the user's own phone, then bridges the far end to it
+ * with their business number as the caller ID.
+ *
+ * The leg Twilio creates must go to `ringFirst`, not to the person being
+ * called. Dialling the target as leg A and then `<Dial>`ing the same number in
+ * the TwiML rang them twice — the second call arriving while the first was
+ * still up, which the handset showed as a call on hold.
  */
 export async function placeCall(params: {
-  from: string;
-  to: string;
+  /** The user's Twilio number, shown to the far end. */
+  callerId: string;
+  /** The user's own phone; this is the leg Twilio creates. */
+  ringFirst: string;
+  /** Who the user wants to reach. */
+  connectTo: string;
 }): Promise<{ sid: string; status: string }> {
   const client = await getTwilioClient();
-  const config = await loadTwilioConfig();
 
   const call = await client.calls.create({
-    from: params.from,
-    to: params.to,
-    ...(config.webhookBaseUrl
-      ? { url: `${config.webhookBaseUrl.replace(/\/$/, '')}/api/twilio/voice` }
-      : {
-          twiml: `<Response><Say>Connecting your call.</Say><Dial>${params.to}</Dial></Response>`,
-        }),
+    from: params.callerId,
+    to: params.ringFirst,
+    twiml: buildBridgeTwiml(params.callerId, params.connectTo),
   });
 
   return { sid: call.sid, status: call.status };

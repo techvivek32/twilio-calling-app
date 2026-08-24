@@ -7,6 +7,7 @@ export type UserRow = {
   email: string;
   role: 'admin' | 'user';
   status: 'active' | 'suspended';
+  personalNumber: string;
   createdAt: string;
   lastLoginAt: string | null;
   numbers: { id: string; phoneNumber: string; friendlyName: string }[];
@@ -94,6 +95,7 @@ export async function getUsers(): Promise<UserRow[]> {
       email: user.email,
       role: user.role as 'admin' | 'user',
       status: user.status as 'active' | 'suspended',
+      personalNumber: user.personalNumber ?? '',
       createdAt: serialize(user.createdAt) as unknown as string,
       lastLoginAt: user.lastLoginAt
         ? (serialize(user.lastLoginAt) as unknown as string)

@@ -24,6 +24,9 @@ const userSchema = new Schema(
     },
     passwordHash: { type: String, required: true },
     role: { type: String, enum: ['admin', 'user'], default: 'user' },
+    // The user's own phone, in E.164. Click-to-call rings this first and then
+    // bridges the far end to it, so the app needs no in-device audio stack.
+    personalNumber: { type: String, default: '' },
     status: { type: String, enum: ['active', 'suspended'], default: 'active' },
     lastLoginAt: { type: Date, default: null },
   },

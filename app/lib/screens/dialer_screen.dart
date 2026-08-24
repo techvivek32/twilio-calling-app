@@ -244,7 +244,6 @@ class _DialerScreenState extends State<DialerScreen> {
   @override
   Widget build(BuildContext context) {
     final match = _match;
-    final formatted = formatDialedNumber(_country, _digits);
     final number = _session.number;
 
     return Column(
@@ -267,9 +266,11 @@ class _DialerScreenState extends State<DialerScreen> {
                 child: ConstrainedBox(
                   constraints: BoxConstraints(minHeight: constraints.maxHeight),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpace.xl,
-                      vertical: AppSpace.lg,
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpace.xl,
+                      AppSpace.md,
+                      AppSpace.xl,
+                      AppSpace.lg,
                     ),
                     child: Column(
                       children: [
@@ -290,32 +291,34 @@ class _DialerScreenState extends State<DialerScreen> {
                               letterSpacing: -0.3,
                             ),
                           ),
-                        ] else
-                          const SizedBox(height: 46),
-                        const SizedBox(height: AppSpace.md),
-                        CountryCodeButton(
-                          country: _country,
-                          onChanged: _selectCountry,
-                          enabled: !_placing,
-                        ),
-                        const SizedBox(height: AppSpace.md),
+                        ],
+                        SizedBox(height: match != null ? AppSpace.md : 0),
+                        // Country on the left, the number beside it, so the
+                        // pair reads as one field instead of stacking.
                         Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            const SizedBox(width: 34),
+                            CountryCodeButton(
+                              country: _country,
+                              onChanged: _selectCountry,
+                              enabled: !_placing,
+                              dense: true,
+                            ),
+                            const SizedBox(width: AppSpace.sm),
                             Expanded(
                               child: FittedBox(
                                 fit: BoxFit.scaleDown,
-                                alignment: Alignment.center,
+                                alignment: Alignment.centerLeft,
                                 child: Text(
-                                  formatted.isEmpty
+                                  _digits.isEmpty
                                       ? 'Enter a number'
-                                      : formatted,
+                                      : formatNationalDigits(_digits),
                                   maxLines: 1,
                                   style: TextStyle(
-                                    fontSize: 34,
+                                    fontSize: 32,
                                     fontWeight: FontWeight.w800,
                                     letterSpacing: -0.8,
-                                    color: formatted.isEmpty
+                                    color: _digits.isEmpty
                                         ? AppColors.textMuted
                                         : AppColors.textPrimary,
                                   ),
@@ -340,7 +343,7 @@ class _DialerScreenState extends State<DialerScreen> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: AppSpace.md),
+                        const SizedBox(height: AppSpace.sm),
                         TextButton.icon(
                           onPressed: match == null && _digits.isNotEmpty
                               ? _addContact

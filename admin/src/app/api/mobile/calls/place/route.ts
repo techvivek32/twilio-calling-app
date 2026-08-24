@@ -40,9 +40,20 @@ export async function POST(request: NextRequest) {
   if (!context.number.capabilities.voice) {
     return fail('Your assigned number cannot make voice calls.', 409);
   }
+  if (!context.user.personalNumber) {
+    return fail(
+      'Add your own phone number in Settings first — the call rings your ' +
+        'phone, then connects the person you dialled.',
+      409,
+    );
+  }
 
   try {
-    const result = await placeCall({ from: context.number.phoneNumber, to });
+    const result = await placeCall({
+      callerId: context.number.phoneNumber,
+      ringFirst: context.user.personalNumber,
+      connectTo: to,
+    });
 
     await connectToDatabase();
     const call = await CallLog.create({

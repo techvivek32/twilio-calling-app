@@ -51,7 +51,7 @@ The dashboard shows a checklist until the panel is fully set up:
 | --- | --- |
 | `/dashboard` | Setup checklist, users/numbers/calls/messages counters, busiest users, recent activity |
 | `/users` | Create users, assign a number at creation, see per-user call/SMS counts |
-| `/users/[id]` | Edit name/email/role/status, reset password, move numbers, delete the account |
+| `/users/[id]` | Edit name/email/role/status, **set their own phone**, reset password, move numbers, delete the account |
 | `/numbers` | Sync from Twilio, add numbers manually, **assign a number to a user**, enable/disable, remove |
 | `/calls` | Every call with a per-user filter |
 | `/messages` | Every SMS with a per-user filter |
@@ -108,6 +108,28 @@ except login.
 When the admin has not assigned a number, or Twilio is unconfigured, these
 return `409` with a message the app shows verbatim rather than failing silently.
 
+### How a call is placed
+
+Click-to-call is a two-leg bridge, so the app needs no in-device audio stack:
+
+1. Twilio rings the user's **own phone** (`personalNumber` on their account).
+2. When they answer, the TwiML dials the person they wanted, with their
+   business number as the caller ID.
+
+The leg Twilio creates must go to the user's phone. Creating it to the person
+being called and then `<Dial>`ing that same number rang them twice — the
+second call landing while the first was still up, which the handset showed as
+a call on hold. `buildBridgeTwiml` is unit-tested against exactly that.
+
+`POST /api/mobile/calls/place` returns `409` until an admin sets the user's own
+phone on `/users/[id]`. `GET /api/mobile/calls/status?sid=…` reports Twilio's
+live state so the app can show *Ringing* and start its timer only once the far
+end answers; it also writes the final outcome and duration back to the call log.
+
+Numbers are never assumed to be American. The app composes E.164 from its
+country picker, and the API rejects anything that is not a full international
+number — a 10-digit Indian mobile silently becoming `+1…` was why SMS failed.
+
 `GET /api/mobile/health` is unauthenticated and backs the app's **Test
 connection** button: it confirms the server is this panel and that MongoDB is
 reachable.
@@ -122,7 +144,7 @@ origins get no CORS headers, so the browser blocks them.
 ```sh
 npm run lint
 npm run build
-npm run e2e                                   # 15 Playwright tests
+npm run e2e                                   # 19 Playwright tests
 npm run smoke -- <email> <password>           # mobile API, against a real app user
 ```
 

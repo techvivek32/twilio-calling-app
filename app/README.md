@@ -71,6 +71,26 @@ The address is saved with the session, so it survives restarts.
 | "Invalid email or password" | The account really is wrong — create or reset it on the panel's **Users** page. |
 | Signed in, but no number | The admin has not assigned this account a number yet (**Phone Numbers** page). |
 
+## Placing a call
+
+The app has no in-device audio stack, so a call is a bridge: Twilio rings
+**your own phone** first, and when you answer it connects the person you
+dialled, showing your business number as the caller ID.
+
+An admin sets that phone on the user's page in the panel. Until then the dialler
+reports `409` with the reason rather than failing silently.
+
+The screen shows *Calling…*, then *Ringing…* once Twilio reports the far end is
+being alerted, and only starts the timer when the call is actually answered.
+If nobody picks up it says *No answer*, *Busy* or *Call failed*.
+
+## Country codes
+
+The dialler and the message composer both carry a country picker, and numbers
+are always sent as full E.164. Nothing is assumed to be American — a 10-digit
+Indian mobile used to become an invalid `+1…` number, which Twilio rejected.
+The last country you pick is remembered.
+
 ## Screens
 
 | Screen | File | Backed by |

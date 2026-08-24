@@ -6,6 +6,7 @@ import { redirect } from 'next/navigation';
 import { hashPassword, requireAdmin } from '@/lib/auth';
 import { connectToDatabase } from '@/lib/db';
 import { CallLog, Contact, MessageLog, PhoneNumber, User } from '@/lib/models';
+import { looksLikeE164, toE164 } from '@/lib/twilio';
 
 export type ActionState = { ok?: string; error?: string };
 
@@ -83,9 +84,24 @@ export async function updateUserAction(
     const role = text(formData, 'role') === 'admin' ? 'admin' : 'user';
     const status = text(formData, 'status') === 'suspended' ? 'suspended' : 'active';
     const password = String(formData.get('password') ?? '');
+    const personalRaw = text(formData, 'personalNumber');
 
     const user = await User.findById(id);
     if (!user) return { error: 'User not found.' };
+
+    // Blank clears it; anything else must be a full international number,
+    // because Twilio dials it directly.
+    let personalNumber = '';
+    if (personalRaw) {
+      personalNumber = toE164(personalRaw);
+      if (!looksLikeE164(personalNumber)) {
+        return {
+          error:
+            'Enter their own phone in full international form, e.g. ' +
+            '+91 98765 43210.',
+        };
+      }
+    }
 
     if (email !== user.email) {
       const clash = await User.findOne({ email, _id: { $ne: id } });
@@ -108,6 +124,7 @@ export async function updateUserAction(
     user.email = email || user.email;
     user.role = role;
     user.status = status;
+    user.personalNumber = personalNumber;
     if (password) {
       if (password.length < 8) {
         return { error: 'Password must be at least 8 characters.' };

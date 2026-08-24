@@ -10,6 +10,8 @@ export type MobileContext = {
     name: string;
     email: string;
     status: 'active' | 'suspended';
+    /** The user's own phone, used as the first leg of click-to-call. */
+    personalNumber: string;
   };
   /** The Twilio number the admin assigned to this user, if any. */
   number: {
@@ -61,6 +63,7 @@ export async function requireMobileUser(
       name: user.name,
       email: user.email,
       status: user.status as 'active' | 'suspended',
+      personalNumber: user.personalNumber ?? '',
     },
     number: number
       ? {

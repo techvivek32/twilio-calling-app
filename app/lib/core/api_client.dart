@@ -40,8 +40,8 @@ class ApiClient {
   /// phone can use neither, so it is set from the sign-in screen.
   static String get defaultBaseUrl {
     if (_configuredBaseUrl.isNotEmpty) return _configuredBaseUrl;
-    if (kIsWeb) return 'http://localhost:3000';
-    return 'http://10.0.2.2:3000';
+    if (kIsWeb) return 'https://twilio-calling-app-virid.vercel.app';
+    return 'https://twilio-calling-app-virid.vercel.app';
   }
 
   static const Duration timeout = Duration(seconds: 20);

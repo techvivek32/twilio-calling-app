@@ -58,9 +58,9 @@ away and the app says so instead of failing.
 | Command | What it covers |
 | --- | --- |
 | `cd admin && npm run lint && npm run build` | Types and production build |
-| `cd admin && npm run e2e` | 15 Playwright tests: auth gating, theme persistence, the full provision → assign → release → delete lifecycle, validation, Twilio settings, mobile-API CORS, sticky layout |
+| `cd admin && npm run e2e` | 19 Playwright tests: auth gating, theme persistence, provision → assign → release → delete, validation, Twilio settings, mobile-API CORS, sticky layout, click-to-call TwiML |
 | `cd admin && npm run smoke -- <email> <password>` | Every mobile endpoint incl. 401/409 paths, against a real app user |
-| `cd app && flutter analyze && flutter test` | 31 tests against a mocked API |
+| `cd app && flutter analyze && flutter test` | 36 tests against a mocked API |
 
 ## Twilio setup
 
@@ -81,8 +81,10 @@ before first paint.
 
 ## Current limits
 
-- In-call audio is not yet routed through the Twilio Voice SDK; the server
-  bridges the call and the app shows the call UI over it. See `app/README.md`.
+- In-call audio is not routed through the Twilio Voice SDK. Calls are a
+  click-to-call bridge: Twilio rings the user's own phone, then connects the
+  person they dialled. Each user therefore needs their own phone number set by
+  an admin on `/users/[id]`.
 - Release APKs are signed with the Flutter debug key.
 - The app allows cleartext HTTP so it can reach a local server; drop that once
   the API is on HTTPS.
