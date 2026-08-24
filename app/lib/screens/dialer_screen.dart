@@ -8,6 +8,7 @@ import '../core/theme.dart';
 import '../models/models.dart';
 import '../widgets/common.dart';
 import '../widgets/country_picker.dart';
+import '../widgets/personal_number_prompt.dart';
 import 'active_call_screen.dart';
 
 /// Groups the national part of a number for readability while it is typed.
@@ -199,6 +200,11 @@ class _DialerScreenState extends State<DialerScreen> {
       );
       return;
     }
+
+    // Click-to-call needs a handset to bridge to. Ask for it here rather than
+    // refusing the call and sending the user off to another screen.
+    if (!await ensurePersonalNumber(context, _session)) return;
+    if (!mounted) return;
 
     final match = _match;
     final name = match?.name ?? formatDialedNumber(_country, _digits);

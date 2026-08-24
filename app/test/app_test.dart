@@ -293,7 +293,7 @@ void main() {
     });
 
 
-    testWidgets('a call is refused until the user sets their own phone', (
+    testWidgets('the dialler asks for the phone to ring, then calls', (
       tester,
     ) async {
       usePhoneViewport(tester);
@@ -307,16 +307,43 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.tap(find.byTooltip('Call'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pumpAndSettle();
 
-      // The reason must say what to do, not just that it failed. It appears
-      // both on the call screen and in the snackbar over it.
-      expect(
-        find.textContaining('Add your own phone number in Settings'),
-        findsWidgets,
+      // Rather than refusing and pointing elsewhere, it asks right here.
+      expect(find.text('Which phone should ring?'), findsOneWidget);
+      expect(server.placedCalls, isEmpty);
+
+      await tester.enterText(
+        find.widgetWithText(TextField, '98765 43210'),
+        '9876543210',
       );
-      expect(find.text('Not connected'), findsWidgets);
+      await tester.tap(find.text('Save and call'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      // Saved in full international form, and the call goes through.
+      expect(server.personalNumber, '+919876543210');
+      expect(server.placedCalls, hasLength(1));
+      expect(server.placedCalls.first['to'], '+12025550199');
+    });
+
+    testWidgets('cancelling the phone prompt places no call', (tester) async {
+      usePhoneViewport(tester);
+      final server = FakeServer();
+      final session = await signedInSession(server);
+
+      await tester.pumpWidget(
+        wrap(DialerScreen(session: session, initialNumber: '+12025550199')),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Call'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(server.placedCalls, isEmpty);
+      expect(find.text('Which phone should ring?'), findsNothing);
     });
 
     testWidgets('an unanswered call reports why it ended', (tester) async {
