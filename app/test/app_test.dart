@@ -346,6 +346,51 @@ void main() {
       expect(find.text('Which phone should ring?'), findsNothing);
     });
 
+
+    testWidgets('calling from history actually dials', (tester) async {
+      usePhoneViewport(tester);
+      final server = FakeServer()..personalNumber = '+919876543210';
+      final session = await signedInSession(server);
+
+      await tester.pumpWidget(wrap(CallHistoryScreen(session: session)));
+      await tester.pumpAndSettle();
+
+      // The history row used to open the call screen without ever asking
+      // Twilio to dial, so it sat at "Not connected".
+      await tester.tap(find.byTooltip('Call back').first);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(server.placedCalls, hasLength(1));
+      expect(find.text('Calling…'), findsOneWidget);
+    });
+
+    testWidgets('hanging up ends the call on Twilio, not just the screen', (
+      tester,
+    ) async {
+      usePhoneViewport(tester);
+      final server = FakeServer()..personalNumber = '+919876543210';
+      final session = await signedInSession(server);
+
+      await tester.pumpWidget(
+        wrap(DialerScreen(session: session, initialNumber: '+12025550199')),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Call'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      final sid = server.placedCalls.first['sid'] ?? 'CA-test';
+      await tester.tap(find.byTooltip('End call'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(server.hungUp, isNotEmpty);
+      expect(server.hungUp.first, isNotEmpty);
+      expect(sid, isNotNull);
+    });
+
     testWidgets('an unanswered call reports why it ended', (tester) async {
       usePhoneViewport(tester);
       final server = FakeServer()..personalNumber = '+919876543210';

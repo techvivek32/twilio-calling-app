@@ -27,6 +27,9 @@ class FakeServer {
 
   static final String _now = DateTime.now().toUtc().toIso8601String();
 
+  /// Call SIDs the app asked Twilio to hang up.
+  final List<String> hungUp = [];
+
   /// Bodies posted to /api/mobile/me/phone, for assertions.
   final List<Map<String, dynamic>> phonePayloads = [];
 
@@ -79,6 +82,15 @@ class FakeServer {
           }
           personalNumber = wanted;
           return _json({'personalNumber': personalNumber});
+
+        case 'POST /api/mobile/calls/hangup':
+          hungUp.add((body['sid'] ?? '').toString());
+          callStatus = 'completed';
+          return _json({
+            'sid': body['sid'],
+            'status': 'completed',
+            'durationSec': callDuration,
+          });
 
         case 'GET /api/mobile/calls/status':
           const dialling = {'queued', 'initiated'};

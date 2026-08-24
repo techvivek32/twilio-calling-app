@@ -153,6 +153,17 @@ class _ActiveCallScreenState extends State<ActiveCallScreen> {
     _timer?.cancel();
     _poll?.cancel();
 
+    // Closing the screen is not hanging up: without this the two parties stay
+    // connected on Twilio after the app has moved on.
+    final sid = widget.callSid;
+    if (sid != null && sid.isNotEmpty) {
+      try {
+        await _session.hangUp(sid);
+      } catch (_) {
+        // Never block leaving the call screen on a failed hangup.
+      }
+    }
+
     // Record the call so it reaches history and the admin panel. A live call
     // was already logged server-side when Twilio accepted it.
     if (!_live) {

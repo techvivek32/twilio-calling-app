@@ -6,7 +6,7 @@ import '../core/theme.dart';
 import '../models/models.dart';
 import '../widgets/async_view.dart';
 import '../widgets/common.dart';
-import 'active_call_screen.dart';
+import '../core/call_launcher.dart';
 import 'contact_details_screen.dart';
 import 'new_message_screen.dart';
 
@@ -138,6 +138,7 @@ class _CallHistoryScreenState extends State<CallHistoryScreen> {
                             separatorBuilder: (_, _) =>
                                 const SizedBox(height: AppSpace.md),
                             itemBuilder: (context, index) => _CallLogTile(
+                              session: _session,
                               call: filtered[index],
                               onChanged: reload,
                             ),
@@ -228,10 +229,15 @@ class _FilterTabs extends StatelessWidget {
 }
 
 class _CallLogTile extends StatelessWidget {
-  const _CallLogTile({required this.call, required this.onChanged});
+  const _CallLogTile({
+    required this.call,
+    required this.onChanged,
+    this.session,
+  });
 
   final CallRecord call;
   final Future<void> Function() onChanged;
+  final AppSession? session;
 
   void _openDetails(BuildContext context) {
     Navigator.of(context).push(
@@ -243,19 +249,19 @@ class _CallLogTile extends StatelessWidget {
             phone: call.peerNumber,
             numberLabel: call.isKnownContact ? 'Work' : 'Unknown',
           ),
+          session: session,
         ),
       ),
     );
   }
 
   Future<void> _call(BuildContext context) async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ActiveCallScreen(
-          name: call.displayName,
-          phone: call.peerNumber,
-        ),
-      ),
+    await startCall(
+      context,
+      number: call.peerNumber,
+      contactName: call.contactName,
+      displayName: call.displayName,
+      session: session,
     );
     await onChanged();
   }

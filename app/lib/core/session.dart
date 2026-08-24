@@ -193,6 +193,11 @@ class AppSession extends ChangeNotifier {
     }
   }
 
+  /// Ends a live call on Twilio, not just in the UI.
+  Future<void> hangUp(String sid) async {
+    await api.post('/api/mobile/calls/hangup', {'sid': sid});
+  }
+
   /// Records a finished call so it appears in history and the admin panel.
   Future<void> logCall({
     required String to,

@@ -19,6 +19,16 @@ Future<bool> ensurePersonalNumber(
 ) async {
   if ((session.user?.personalNumber ?? '').isNotEmpty) return true;
 
+  // An admin may have set it on the user's page since this device signed in,
+  // so refresh before asking for something already on file.
+  try {
+    await session.loadHome();
+  } catch (_) {
+    // Offline or the server is down; the prompt below still works.
+  }
+  if ((session.user?.personalNumber ?? '').isNotEmpty) return true;
+  if (!context.mounted) return false;
+
   final saved = await showDialog<bool>(
     context: context,
     barrierDismissible: false,
