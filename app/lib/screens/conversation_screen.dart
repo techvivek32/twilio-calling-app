@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../core/call_launcher.dart';
@@ -26,14 +28,61 @@ class _ConversationScreenState extends State<ConversationScreen> {
   final _scrollController = ScrollController();
   late List<ChatMessage> _messages = [...widget.conversation.messages];
   bool _sending = false;
+  Timer? _poll;
 
   AppSession get _session => widget.session ?? AppSession.instance;
 
   @override
+  void initState() {
+    super.initState();
+
+    // Opening the thread is what makes it read.
+    unawaited(_markRead());
+
+    // A reply arrives by SMS, not through this app, so the only way to see it
+    // while the thread is open is to ask the server for it.
+    _poll = Timer.periodic(const Duration(seconds: 6), (_) => _refresh());
+  }
+
+  @override
   void dispose() {
+    _poll?.cancel();
     _composer.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  Future<void> _markRead() async {
+    try {
+      await _session.markThreadRead(widget.conversation.peer);
+    } catch (_) {
+      // A failed read receipt must never interrupt reading the thread.
+    }
+  }
+
+  /// Pulls the thread again and appends anything new.
+  Future<void> _refresh() async {
+    if (_sending) return;
+
+    try {
+      final thread = await _session.loadThread(widget.conversation.peer);
+      if (!mounted || thread == null) return;
+      if (thread.messages.length <= _messages.length) return;
+
+      final atBottom =
+          !_scrollController.hasClients ||
+          _scrollController.position.pixels >=
+              _scrollController.position.maxScrollExtent - 40;
+
+      setState(() => _messages = [...thread.messages]);
+      unawaited(_markRead());
+
+      // Only follow the new message if the user was already at the bottom;
+      // yanking the view while they read older messages is worse than not.
+      if (atBottom) _scrollToEnd();
+    } catch (_) {
+      // Offline or a blip: the next tick tries again.
+    }
   }
 
   Future<void> _send() async {

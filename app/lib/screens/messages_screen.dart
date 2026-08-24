@@ -203,16 +203,52 @@ class _ConversationTile extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 3),
-                Text(
-                  last?.body ?? '',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 14.5,
-                    color: (last?.failed ?? false)
-                        ? AppColors.danger
-                        : AppColors.textSecondary,
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        last?.body ?? '',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: conversation.unread > 0
+                              ? FontWeight.w600
+                              : FontWeight.w400,
+                          color: (last?.failed ?? false)
+                              ? AppColors.danger
+                              : conversation.unread > 0
+                              ? AppColors.textPrimary
+                              : AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                    if (conversation.unread > 0) ...[
+                      const SizedBox(width: AppSpace.sm),
+                      Container(
+                        constraints: const BoxConstraints(minWidth: 22),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 7,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          borderRadius: BorderRadius.circular(
+                            AppSpace.radiusPill,
+                          ),
+                        ),
+                        child: Text(
+                          '${conversation.unread}',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),

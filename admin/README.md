@@ -109,6 +109,14 @@ The flow:
 3. `POST /api/twilio/sms` — files an inbound message against the number's
    owner, keyed on the message SID so a Twilio retry cannot duplicate it.
 
+A reply arrives over SMS rather than through the app, so an open thread polls
+`GET /api/mobile/messages` every six seconds and appends anything new. It only
+scrolls down if the reader was already at the bottom.
+
+Opening a thread marks it read via `POST /api/mobile/messages/read`. The unread
+badge counts inbound messages with no `readAt`; it used to count every inbound
+message ever received, so it could only ever grow.
+
 **Every webhook verifies `X-Twilio-Signature`** and answers `403` otherwise.
 These URLs are public: unsigned, anyone who learned one could forge call and
 message records or make the server dial a number of their choosing.

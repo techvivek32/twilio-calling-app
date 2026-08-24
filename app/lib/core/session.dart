@@ -193,6 +193,20 @@ class AppSession extends ChangeNotifier {
     }
   }
 
+  /// Marks a thread read so the unread badge can go down.
+  Future<void> markThreadRead(String peer) async {
+    await api.post('/api/mobile/messages/read', {'peer': peer});
+  }
+
+  /// Re-reads one thread, for picking up replies while it is open.
+  Future<Conversation?> loadThread(String peer) async {
+    final conversations = await loadConversations();
+    for (final conversation in conversations) {
+      if (conversation.peer == peer) return conversation;
+    }
+    return null;
+  }
+
   /// Ends a live call on Twilio, not just in the UI.
   Future<void> hangUp(String sid) async {
     await api.post('/api/mobile/calls/hangup', {'sid': sid});

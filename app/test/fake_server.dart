@@ -27,6 +27,11 @@ class FakeServer {
 
   static final String _now = DateTime.now().toUtc().toIso8601String();
 
+  /// Threads the app marked read, and replies queued to arrive on the next
+  /// poll — so tests can act out someone texting back.
+  final List<String> markedRead = [];
+  final List<Map<String, dynamic>> incomingReplies = [];
+
   /// Call SIDs the app asked Twilio to hang up.
   final List<String> hungUp = [];
 
@@ -82,6 +87,10 @@ class FakeServer {
           }
           personalNumber = wanted;
           return _json({'personalNumber': personalNumber});
+
+        case 'POST /api/mobile/messages/read':
+          markedRead.add((body['peer'] ?? '').toString());
+          return _json({'peer': body['peer'], 'marked': 1});
 
         case 'POST /api/mobile/calls/hangup':
           hungUp.add((body['sid'] ?? '').toString());
@@ -242,6 +251,7 @@ class FakeServer {
               {
                 'peer': '+15550198372',
                 'contactName': 'Sarah Jenkins',
+                'unread': incomingReplies.length,
                 'messages': [
                   {
                     'id': 'm1',
@@ -269,6 +279,7 @@ class FakeServer {
                     'status': 'failed',
                     'sentAt': _now,
                   },
+                  ...incomingReplies,
                 ],
               },
             ],

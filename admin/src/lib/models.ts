@@ -122,6 +122,9 @@ const messageLogSchema = new Schema(
       enum: ['queued', 'sent', 'delivered', 'failed', 'received'],
       default: 'sent',
     },
+    // Null until the user opens the thread. The unread badge counts these, so
+    // it can go down as well as up.
+    readAt: { type: Date, default: null },
     sentAt: { type: Date, default: Date.now, index: true },
   },
   { timestamps: true },

@@ -29,6 +29,7 @@ export async function GET(request: NextRequest) {
     {
       peer: string;
       contactName: string;
+      unread: number;
       messages: {
         id: string;
         body: string;
@@ -47,8 +48,10 @@ export async function GET(request: NextRequest) {
     const thread = threads.get(peer) ?? {
       peer,
       contactName: message.contactName ?? '',
+      unread: 0,
       messages: [],
     };
+    if (!fromMe && !message.readAt) thread.unread += 1;
     if (!thread.contactName && message.contactName) {
       thread.contactName = message.contactName;
     }

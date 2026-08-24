@@ -887,4 +887,56 @@ void main() {
       expect(find.text('98765 43210'), findsOneWidget);
     });
   });
+
+  group('receiving messages', () {
+    testWidgets('a reply arrives while the thread is open', (tester) async {
+      usePhoneViewport(tester);
+      final server = FakeServer();
+      final session = await signedInSession(server);
+      final threads = await session.loadConversations();
+
+      await tester.pumpWidget(
+        wrap(ConversationScreen(conversation: threads.first, session: session)),
+      );
+      await tester.pumpAndSettle();
+
+      // Opening the thread is what marks it read.
+      expect(server.markedRead, contains('+15550198372'));
+      expect(find.text('Thanks, that works for me.'), findsNothing);
+
+      // Someone texts back. It arrives by SMS, so the only way the open
+      // thread can show it is by asking the server again.
+      server.incomingReplies.add({
+        'id': 'reply-1',
+        'body': 'Thanks, that works for me.',
+        'fromMe': false,
+        'status': 'received',
+        'sentAt': DateTime.now().toUtc().toIso8601String(),
+      });
+
+      await tester.pump(const Duration(seconds: 7));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Thanks, that works for me.'), findsOneWidget);
+    });
+
+    testWidgets('an unread thread is badged in the list', (tester) async {
+      usePhoneViewport(tester);
+      final server = FakeServer();
+      server.incomingReplies.add({
+        'id': 'reply-1',
+        'body': 'Are you free tomorrow?',
+        'fromMe': false,
+        'status': 'received',
+        'sentAt': DateTime.now().toUtc().toIso8601String(),
+      });
+      final session = await signedInSession(server);
+
+      await tester.pumpWidget(wrap(MessagesScreen(session: session)));
+      await tester.pumpAndSettle();
+
+      expect(find.text('1'), findsOneWidget);
+      expect(find.text('Are you free tomorrow?'), findsOneWidget);
+    });
+  });
 }

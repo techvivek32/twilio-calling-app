@@ -256,6 +256,7 @@ class Conversation {
     required this.peer,
     required this.contactName,
     required this.messages,
+    this.unread = 0,
   });
 
   factory Conversation.fromJson(Map<String, dynamic> json) {
@@ -263,6 +264,7 @@ class Conversation {
     return Conversation(
       peer: _string(json['peer']),
       contactName: _string(json['contactName']),
+      unread: _int(json['unread']),
       messages: rawMessages is List
           ? rawMessages
                 .whereType<Map<String, dynamic>>()
@@ -274,6 +276,9 @@ class Conversation {
 
   final String peer;
   final String contactName;
+
+  /// Inbound messages in this thread the user has not opened yet.
+  final int unread;
   final List<ChatMessage> messages;
 
   String get displayName =>

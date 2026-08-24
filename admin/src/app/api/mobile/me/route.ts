@@ -38,9 +38,11 @@ export async function GET(request: NextRequest) {
       startedAt: { $gte: startOfDay },
       direction: 'inbound',
     }),
+    // Unread, not "every inbound message ever" — the badge used to only grow.
     MessageLog.countDocuments({
       userId: context.user.id,
       direction: 'inbound',
+      readAt: null,
     }),
     MessageLog.findOne({ userId: context.user.id, direction: 'inbound' })
       .sort({ sentAt: -1 })
