@@ -1,4 +1,4 @@
-# Business Connect
+# Vision Connect
 
 A Twilio-backed business phone system: an Android app for users, and a web
 admin panel that hands out numbers and watches usage.

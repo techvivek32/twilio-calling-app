@@ -21,7 +21,7 @@ class ApiException implements Exception {
   String toString() => message;
 }
 
-/// Thin JSON client for the Business Connect admin server.
+/// Thin JSON client for the Vision Connect admin server.
 class ApiClient {
   ApiClient({http.Client? httpClient, String? baseUrl})
     : _http = httpClient ?? http.Client(),

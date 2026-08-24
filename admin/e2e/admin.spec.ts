@@ -271,7 +271,9 @@ test.describe('twilio settings', () => {
       'https://e2e.example.com',
     );
 
-    // Reset so a re-run starts clean.
+    // Clear the values this test typed. The real credentials are snapshotted
+    // by global-setup and put back by global-teardown, so a run never leaves
+    // a configured account broken.
     await page.getByLabel('Account SID').fill('');
     await page.getByLabel('Public webhook base URL').fill('');
     await page.getByRole('button', { name: 'Save settings' }).click();

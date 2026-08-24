@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-/// Design tokens for Business Connect, derived from the product mockups.
+/// Design tokens for Vision Connect, derived from the product mockups.
 class AppColors {
   const AppColors._();
 

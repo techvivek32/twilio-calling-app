@@ -5,9 +5,9 @@ import { ThemeSync, themeBootstrapScript } from '@/components/theme-toggle';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Business Connect Admin',
+  title: 'Vision Connect Admin',
   description:
-    'Manage Twilio numbers, user assignments and call/SMS activity for Business Connect.',
+    'Manage Twilio numbers, user assignments and call/SMS activity for Vision Connect.',
 };
 
 export default function RootLayout({ children }: LayoutProps<'/'>) {

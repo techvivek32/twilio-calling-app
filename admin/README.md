@@ -1,4 +1,4 @@
-# Business Connect — Admin Panel
+# Vision Connect — Admin Panel
 
 Next.js 16 (App Router) + MongoDB. It is both the admin UI and the API the
 Flutter app talks to.
@@ -122,7 +122,10 @@ second call landing while the first was still up, which the handset showed as
 a call on hold. `buildBridgeTwiml` is unit-tested against exactly that.
 
 `POST /api/mobile/calls/place` returns `409` until an admin sets the user's own
-phone on `/users/[id]`. `GET /api/mobile/calls/status?sid=…` reports Twilio's
+phone on `/users/[id]`. A call the app logged while it was open only carries a
+provisional outcome, so the Calls and Dashboard pages reconcile recent calls
+against Twilio on load (`src/lib/call-sync.ts`) and write back the real status
+and duration. Without that a finished call stayed at `0s` forever. `GET /api/mobile/calls/status?sid=…` reports Twilio's
 live state so the app can show *Ringing* and start its timer only once the far
 end answers; it also writes the final outcome and duration back to the call log.
 
@@ -152,6 +155,11 @@ npm run smoke -- <email> <password>           # mobile API, against a real app u
 fixtures through the UI, and cleans up first (`e2e/global-setup.ts`). It only
 ever touches accounts whose email starts with `e2e-` and two reserved test
 numbers, so it is safe to run against a populated panel.
+
+The settings spec types into the Twilio fields, so the suite snapshots the real
+Account SID and webhook URL before it runs and restores them afterwards. It
+used to blank them outright, which silently took a configured account offline
+until someone noticed and re-entered it.
 
 ## Notes
 

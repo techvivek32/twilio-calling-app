@@ -22,7 +22,7 @@ class BusinessConnectApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Business Connect',
+      title: 'Vision Connect',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.build(),
       builder: (context, child) {

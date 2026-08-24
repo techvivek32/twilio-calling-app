@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, type ComponentType } from 'react';
@@ -35,12 +36,17 @@ const LINKS: NavLink[] = [
 function Wordmark() {
   return (
     <div className="flex items-center gap-2.5">
-      <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand text-on-brand">
-        <IconPhone size={18} />
-      </span>
+      <Image
+        src="/logo-mark.png"
+        alt=""
+        width={36}
+        height={36}
+        className="size-9 shrink-0 rounded-lg"
+        priority
+      />
       <span className="min-w-0">
         <span className="block truncate text-[15px] font-semibold tracking-tight text-ink">
-          Business Connect
+          Vision Connect
         </span>
         <span className="block eyebrow">Admin</span>
       </span>

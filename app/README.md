@@ -1,6 +1,6 @@
-# Business Connect — Flutter app
+# Vision Connect — Flutter app
 
-Flutter 3.38 / Dart 3.10 client for the Business Connect admin panel. Users
+Flutter 3.38 / Dart 3.10 client for the Vision Connect admin panel. Users
 sign in with the account an admin created for them, and dial from the Twilio
 number the admin assigned them. The app ships no sample data — everything on
 screen comes from the server.

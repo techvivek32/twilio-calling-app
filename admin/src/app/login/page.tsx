@@ -1,9 +1,10 @@
 'use client';
 
+import Image from 'next/image';
 import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
 
-import { IconAlert, IconPhone } from '@/components/icons';
+import { IconAlert } from '@/components/icons';
 import { ThemeToggle } from '@/components/theme-toggle';
 
 import { loginAction, type LoginState } from './actions';
@@ -27,11 +28,16 @@ export default function LoginPage() {
     <main className="flex flex-1 flex-col items-center justify-center px-5 py-10">
       <div className="w-full max-w-sm">
         <div className="mb-7 flex flex-col items-center text-center">
-          <span className="mb-4 flex size-12 items-center justify-center rounded-xl bg-brand text-on-brand shadow-raised">
-            <IconPhone size={22} />
-          </span>
+          <Image
+            src="/logo-mark.png"
+            alt=""
+            width={56}
+            height={56}
+            className="mb-4 size-14 rounded-2xl shadow-raised"
+            priority
+          />
           <h1 className="text-xl font-semibold tracking-tight text-ink">
-            Business Connect
+            Vision Connect
           </h1>
           <p className="mt-1 text-sm text-ink-soft">
             Sign in to the admin panel

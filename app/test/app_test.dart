@@ -671,7 +671,7 @@ void main() {
   });
 
   group('server address check', () {
-    test('accepts a healthy Business Connect server', () async {
+    test('accepts a healthy Vision Connect server', () async {
       final server = FakeServer();
       final api = ApiClient(
         httpClient: server.client(),

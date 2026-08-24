@@ -108,7 +108,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: AppSpace.xl),
                     Text(
-                      'Business Connect',
+                      'Vision Connect',
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.headlineMedium,
                     ),

@@ -260,13 +260,13 @@ class CircleActionButton extends StatelessWidget {
   }
 }
 
-/// Shared Business Connect top bar.
+/// Shared Vision Connect top bar.
 class BrandHeader extends StatelessWidget implements PreferredSizeWidget {
   const BrandHeader({
     super.key,
     this.leading,
     this.trailing,
-    this.title = 'Business Connect',
+    this.title = 'Vision Connect',
     this.showBell = true,
     this.bellHasBadge = false,
     this.onBellTap,

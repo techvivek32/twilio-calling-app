@@ -86,6 +86,9 @@ const callLogSchema = new Schema(
       default: 'completed',
     },
     durationSec: { type: Number, default: 0 },
+    // When the final status and duration were read back from Twilio. Unset
+    // means the outcome is still provisional.
+    twilioSyncedAt: { type: Date, default: null },
     startedAt: { type: Date, default: Date.now, index: true },
   },
   { timestamps: true },

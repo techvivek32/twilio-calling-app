@@ -22,6 +22,7 @@ import {
   formatDateTime,
   formatDuration,
 } from '@/components/ui';
+import { backfillCallDurations } from '@/lib/call-sync';
 import {
   getCalls,
   getDashboardStats,
@@ -129,6 +130,9 @@ function SetupChecklist({
 }
 
 export default async function DashboardPage() {
+  // Talk time is meaningless until finished calls have their real duration.
+  await backfillCallDurations();
+
   const [stats, users, numbers, calls, messages, twilio] = await Promise.all([
     getDashboardStats(),
     getUsers(),
@@ -153,7 +157,7 @@ export default async function DashboardPage() {
     <>
       <PageHeader
         title="Dashboard"
-        subtitle="Usage across every Business Connect user and Twilio number."
+        subtitle="Usage across every Vision Connect user and Twilio number."
       />
 
       <SetupChecklist

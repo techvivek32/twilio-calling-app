@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
 
   if (personalNumber === context.number?.phoneNumber) {
     return fail(
-      'This is your Business Connect number. Enter the phone you actually ' +
+      'This is your Vision Connect number. Enter the phone you actually ' +
         'answer, so calls can ring it.',
       422,
     );

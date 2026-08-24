@@ -22,7 +22,7 @@ function escapeXml(value: string) {
  *
  * - Outbound: the app dials through a TwiML App, so `To` is the party being
  *   called and we bridge the leg from the user's assigned number.
- * - Inbound: someone rang a Business Connect number, so we ring the assigned
+ * - Inbound: someone rang a Vision Connect number, so we ring the assigned
  *   user's registered client and log the call either way.
  */
 export async function POST(request: NextRequest) {
