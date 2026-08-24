@@ -6,7 +6,11 @@ import { requireAdmin } from '@/lib/auth';
 import { encryptSecret } from '@/lib/crypto';
 import { connectToDatabase } from '@/lib/db';
 import { Setting } from '@/lib/models';
-import { fetchAccountSnapshot, loadTwilioConfig } from '@/lib/twilio';
+import {
+  fetchAccountSnapshot,
+  loadTwilioConfig,
+  wireWebhooks,
+} from '@/lib/twilio';
 
 export type ActionState = { ok?: string; error?: string };
 
@@ -99,5 +103,38 @@ export async function testConnectionAction(
     );
     revalidatePath('/settings');
     return { error: `Twilio rejected the credentials: ${message}` };
+  }
+}
+
+/**
+ * Points every Twilio number at this deployment.
+ *
+ * Inbound calls and texts only arrive if each number's webhooks name this
+ * server, and setting them by hand in the Twilio Console is the step most
+ * often missed.
+ */
+export async function wireWebhooksAction(
+  _prev: ActionState,
+  _formData: FormData,
+): Promise<ActionState> {
+  try {
+    await requireAdmin();
+    const { webhookBaseUrl } = await loadTwilioConfig();
+
+    const { updated, total } = await wireWebhooks(webhookBaseUrl);
+    revalidatePath('/settings');
+    revalidatePath('/numbers');
+
+    if (total === 0) {
+      return { error: 'This Twilio account owns no phone numbers yet.' };
+    }
+    return {
+      ok:
+        updated === 0
+          ? `All ${total} number(s) already point here.`
+          : `Pointed ${updated} of ${total} number(s) at this server.`,
+    };
+  } catch (error) {
+    return { error: (error as Error).message };
   }
 }

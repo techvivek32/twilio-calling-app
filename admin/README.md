@@ -88,16 +88,38 @@ number at:
 
 Inbound calls and texts are logged against whichever user owns the number.
 
+### Incoming calls and texts
+
 An incoming call **forwards to the owner's own phone** — the same handset
 click-to-call rings — with the business number as the caller ID. It previously
 dialled `<Client>`, which needs the Twilio Voice SDK registered from the
 device; the app has no SDK, so nothing was listening and every incoming call
 rang out. A number whose owner has no phone on file answers with a spoken
-"not available" rather than ringing nowhere.
+notice rather than ringing nowhere.
 
-Incoming only works once Twilio can reach this server, so it needs a public
-webhook base URL (a tunnel such as ngrok or cloudflared during development)
-with each number's Voice webhook pointed at `<base>/api/twilio/voice`.
+The flow:
+
+1. `POST /api/twilio/voice` — verifies the signature, logs the call as missed
+   up front so a caller who gives up mid-ring is still recorded, then dials the
+   owner's phone for 25 seconds.
+2. `POST /api/twilio/voice/completed` — Twilio's `action` callback, which fires
+   however the dial ends. It writes the true outcome (answered, busy, no
+   answer) and the real duration. Without it every answered call would stay
+   filed as missed.
+3. `POST /api/twilio/sms` — files an inbound message against the number's
+   owner, keyed on the message SID so a Twilio retry cannot duplicate it.
+
+**Every webhook verifies `X-Twilio-Signature`** and answers `403` otherwise.
+These URLs are public: unsigned, anyone who learned one could forge call and
+message records or make the server dial a number of their choosing.
+
+Set the public webhook base URL on `/settings`, then press **Point numbers at
+this server** — it writes the voice and messaging webhooks onto every number
+through the Twilio API, so nothing has to be typed into the Twilio Console.
+The card lists each number as *Wired* or *Not wired*.
+
+On Vercel the base URL defaults to the deployment's own address, so a fresh
+deploy only needs the button pressed.
 
 ## Mobile API
 
@@ -156,7 +178,7 @@ origins get no CORS headers, so the browser blocks them.
 ```sh
 npm run lint
 npm run build
-npm run e2e                                   # 19 Playwright tests
+npm run e2e                                   # 21 Playwright tests
 npm run smoke -- <email> <password>           # mobile API, against a real app user
 ```
 

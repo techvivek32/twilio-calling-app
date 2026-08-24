@@ -13,6 +13,20 @@ export type ServerAddress = {
  * a physical phone needs.
  */
 export function serverAddresses(port = 3000): ServerAddress[] {
+  // On a hosted deployment the machine's own interfaces are private and
+  // useless to a phone; the public URL is the only address that works.
+  const deployed =
+    process.env.VERCEL_PROJECT_PRODUCTION_URL ?? process.env.VERCEL_URL;
+  if (deployed) {
+    return [
+      {
+        url: `https://${deployed}`,
+        label: 'this deployment',
+        external: true,
+      },
+    ];
+  }
+
   const addresses: ServerAddress[] = [
     { url: `http://localhost:${port}`, label: 'This computer', external: false },
     {

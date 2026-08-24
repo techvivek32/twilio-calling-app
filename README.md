@@ -58,9 +58,9 @@ away and the app says so instead of failing.
 | Command | What it covers |
 | --- | --- |
 | `cd admin && npm run lint && npm run build` | Types and production build |
-| `cd admin && npm run e2e` | 19 Playwright tests: auth gating, theme persistence, provision → assign → release → delete, validation, Twilio settings, mobile-API CORS, sticky layout, click-to-call TwiML |
+| `cd admin && npm run e2e` | 21 Playwright tests: auth gating, theme persistence, provision → assign → release → delete, validation, Twilio settings, mobile-API CORS, sticky layout, click-to-call TwiML, webhook signature rejection |
 | `cd admin && npm run smoke -- <email> <password>` | Every mobile endpoint incl. 401/409 paths, against a real app user |
-| `cd app && flutter analyze && flutter test` | 36 tests against a mocked API |
+| `cd app && flutter analyze && flutter test` | 42 tests against a mocked API |
 
 ## Twilio setup
 

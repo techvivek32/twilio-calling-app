@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { buildBridgeTwiml, looksLikeE164, toE164 } from '../src/lib/twilio';
+import { buildBridgeTwiml, looksLikeE164, toE164, webhookTargets } from '../src/lib/twilio';
 
 test.describe('click-to-call TwiML', () => {
   test('dials the person called, not the leg Twilio already made', () => {
@@ -11,7 +11,6 @@ test.describe('click-to-call TwiML', () => {
     expect(twiml.match(/\+918140126027/g)).toHaveLength(1);
     expect(twiml).toContain('callerId="+18259070036"');
     expect(twiml).not.toContain('<Say>');
-    // answerOnBridge keeps the caller hearing real ringing until pickup.
     expect(twiml).toContain('answerOnBridge="true"');
   });
 
@@ -24,8 +23,6 @@ test.describe('click-to-call TwiML', () => {
 
 test.describe('number normalisation', () => {
   test('never invents a country code', () => {
-    // The bug this guards: a 10-digit Indian mobile became an invalid US
-    // number, which Twilio rejected when sending SMS.
     expect(toE164('8140126027')).toBe('+8140126027');
     expect(looksLikeE164('+8140126027')).toBe(true);
     expect(toE164('+91 81401 26027')).toBe('+918140126027');
@@ -38,24 +35,48 @@ test.describe('number normalisation', () => {
   });
 });
 
-test.describe('inbound forwarding', () => {
-  test('rings the user, not a Voice SDK client that is not there', async ({
-    request,
-  }) => {
-    // The app registers no Twilio Voice client, so <Client> rang out every
-    // time. Inbound must reach the handset the user actually answers.
+test.describe('webhook targets', () => {
+  test('builds the URLs a number must call, without a double slash', () => {
+    expect(webhookTargets('https://app.vercel.app/')).toEqual({
+      voice: 'https://app.vercel.app/api/twilio/voice',
+      sms: 'https://app.vercel.app/api/twilio/sms',
+    });
+  });
+});
+
+test.describe('webhook security', () => {
+  // These endpoints are public. Without signature checking anyone who knew a
+  // URL could forge call and message records, or make the server dial out.
+  const routes = [
+    '/api/twilio/voice',
+    '/api/twilio/voice/completed',
+    '/api/twilio/sms',
+  ];
+
+  for (const route of routes) {
+    test(`${route} refuses an unsigned request`, async ({ request }) => {
+      const response = await request.post(route, {
+        form: {
+          From: '+919876500123',
+          To: '+18259070036',
+          CallSid: 'CAforged',
+          MessageSid: 'SMforged',
+          Body: 'forged',
+          Direction: 'inbound',
+        },
+      });
+
+      expect(response.status()).toBe(403);
+      expect(await response.text()).not.toContain('<Dial');
+    });
+  }
+
+  test('a forged signature is rejected too', async ({ request }) => {
     const response = await request.post('/api/twilio/voice', {
-      form: {
-        From: '+919876500123',
-        To: '+10000000000',
-        CallSid: 'CAinboundtest',
-        Direction: 'inbound',
-      },
+      headers: { 'X-Twilio-Signature': 'not-a-real-signature' },
+      form: { From: '+91987650123', To: '+18259070036', CallSid: 'CAx' },
     });
 
-    const body = await response.text();
-    expect(body).not.toContain('<Client>');
-    // An unknown number is refused rather than dialled blindly.
-    expect(body).toContain('not in service');
+    expect(response.status()).toBe(403);
   });
 });

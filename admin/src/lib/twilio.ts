@@ -30,7 +30,15 @@ export async function loadTwilioConfig(): Promise<TwilioConfig> {
     apiKeySid: settings.apiKeySid ?? '',
     apiKeySecret: decryptSecret(settings.apiKeySecretEnc ?? ''),
     twimlAppSid: settings.twimlAppSid ?? '',
-    webhookBaseUrl: settings.webhookBaseUrl ?? '',
+    // On Vercel the deployment already knows its own public address, so a
+    // fresh install needs no manual entry for inbound to work.
+    webhookBaseUrl:
+      settings.webhookBaseUrl ||
+      (process.env.VERCEL_PROJECT_PRODUCTION_URL
+        ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+        : process.env.VERCEL_URL
+          ? `https://${process.env.VERCEL_URL}`
+          : ''),
     defaultCallerId: settings.defaultCallerId ?? '',
   };
 }
@@ -232,4 +240,78 @@ export function formatPhone(value: string): string {
     return `+1 (${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
   }
   return value;
+}
+
+export type WebhookState = {
+  phoneNumber: string;
+  sid: string | null;
+  voiceUrl: string;
+  smsUrl: string;
+  /** Both webhooks already point at this deployment. */
+  wired: boolean;
+};
+
+/** The URLs a number must call for this server to receive its traffic. */
+export function webhookTargets(baseUrl: string) {
+  const base = baseUrl.replace(/\/$/, '');
+  return {
+    voice: `${base}/api/twilio/voice`,
+    sms: `${base}/api/twilio/sms`,
+  };
+}
+
+/** Reads each number's currently configured webhooks straight from Twilio. */
+export async function readWebhookState(
+  baseUrl: string,
+): Promise<WebhookState[]> {
+  const client = await getTwilioClient();
+  const numbers = await client.incomingPhoneNumbers.list({ limit: 1000 });
+  const want = webhookTargets(baseUrl);
+
+  return numbers.map((number) => ({
+    phoneNumber: number.phoneNumber,
+    sid: number.sid,
+    voiceUrl: number.voiceUrl ?? '',
+    smsUrl: number.smsUrl ?? '',
+    wired:
+      Boolean(baseUrl) &&
+      number.voiceUrl === want.voice &&
+      number.smsUrl === want.sms,
+  }));
+}
+
+/**
+ * Points every number on the account at this deployment.
+ *
+ * Doing it here means an admin never has to hand-edit webhooks in the Twilio
+ * Console, which is the step most likely to be missed or mistyped — and
+ * without it inbound calls and texts simply never arrive.
+ */
+export async function wireWebhooks(
+  baseUrl: string,
+): Promise<{ updated: number; total: number }> {
+  if (!baseUrl) {
+    throw new Error(
+      'Set the public webhook base URL first — Twilio needs a public address ' +
+        'to reach this server.',
+    );
+  }
+
+  const client = await getTwilioClient();
+  const want = webhookTargets(baseUrl);
+  const numbers = await client.incomingPhoneNumbers.list({ limit: 1000 });
+
+  let updated = 0;
+  for (const number of numbers) {
+    if (number.voiceUrl === want.voice && number.smsUrl === want.sms) continue;
+    await client.incomingPhoneNumbers(number.sid).update({
+      voiceUrl: want.voice,
+      voiceMethod: 'POST',
+      smsUrl: want.sms,
+      smsMethod: 'POST',
+    });
+    updated += 1;
+  }
+
+  return { updated, total: numbers.length };
 }

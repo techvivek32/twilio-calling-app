@@ -2,39 +2,35 @@ import type { NextRequest } from 'next/server';
 
 import { connectToDatabase } from '@/lib/db';
 import { CallLog, Contact, PhoneNumber, User } from '@/lib/models';
+import { loadTwilioConfig } from '@/lib/twilio';
+import { escapeXml, twiml, verifyTwilioRequest } from '@/lib/twilio-webhook';
 
-function twiml(body: string) {
-  return new Response(`<?xml version="1.0" encoding="UTF-8"?>${body}`, {
-    headers: { 'Content-Type': 'text/xml; charset=utf-8' },
-  });
-}
-
-function escapeXml(value: string) {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
+/** How long the owner's phone rings before the call is treated as missed. */
+const RING_SECONDS = 25;
 
 /**
- * Twilio webhook for voice.
+ * Voice webhook. Point a number's "A call comes in" here.
  *
- * - Outbound: the app dials through a TwiML App, so `To` is the party being
- *   called and we bridge the leg from the user's assigned number.
- * - Inbound: someone rang a Vision Connect number, so we ring the assigned
- *   user's registered client and log the call either way.
+ * An incoming call forwards to the phone the owner actually answers — the same
+ * handset click-to-call rings. It used to dial `<Client>`, which needs the
+ * Twilio Voice SDK registered from the device; the app has no SDK, so nothing
+ * was listening and every call rang out.
  */
 export async function POST(request: NextRequest) {
-  const form = await request.formData();
-  const from = String(form.get('From') ?? '');
-  const to = String(form.get('To') ?? '');
-  const sid = String(form.get('CallSid') ?? '');
-  const direction = String(form.get('Direction') ?? '');
+  const verified = await verifyTwilioRequest(request);
+  if (!verified.ok) {
+    // Do not describe the service to an unverified caller.
+    return twiml('<Response><Reject/></Response>', 403);
+  }
+
+  const { params } = verified;
+  const from = params.From ?? '';
+  const to = params.To ?? '';
+  const sid = params.CallSid ?? '';
+  const isOutboundFromApp = (params.Direction ?? '').startsWith('outbound');
 
   await connectToDatabase();
 
-  const isOutboundFromApp = direction.startsWith('outbound');
   const businessNumber = await PhoneNumber.findOne({
     phoneNumber: isOutboundFromApp ? from : to,
   });
@@ -45,37 +41,40 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const peer = isOutboundFromApp ? to : from;
-  const contact = await Contact.findOne({
-    userId: businessNumber.assignedTo,
-    phone: peer,
-  });
-
-  await CallLog.create({
-    userId: businessNumber.assignedTo,
-    phoneNumberId: businessNumber._id,
-    twilioSid: sid || null,
-    from,
-    to,
-    contactName: contact?.name ?? '',
-    direction: isOutboundFromApp ? 'outbound' : 'inbound',
-    status: 'completed',
-    durationSec: 0,
-    startedAt: new Date(),
-  });
-
   if (isOutboundFromApp) {
+    // The outbound leg is already logged by /api/mobile/calls/place.
     return twiml(
-      `<Response><Dial callerId="${escapeXml(businessNumber.phoneNumber)}">${escapeXml(to)}</Dial></Response>`,
+      `<Response><Dial callerId="${escapeXml(businessNumber.phoneNumber)}" answerOnBridge="true">` +
+        `${escapeXml(to)}</Dial></Response>`,
     );
   }
 
-  // Inbound: forward to the phone the user actually answers.
-  //
-  // This used to dial <Client>, which needs the Twilio Voice SDK registered
-  // from the device. The app has no SDK, so nothing was ever listening and
-  // every incoming call rang out. Forwarding to their own handset works with
-  // no SDK at all, and mirrors how outbound already bridges.
+  const contact = await Contact.findOne({
+    userId: businessNumber.assignedTo,
+    phone: from,
+  });
+
+  // Record it now so a caller who hangs up mid-ring still shows as missed.
+  // The completion callback below upgrades it once the call resolves.
+  await CallLog.updateOne(
+    { twilioSid: sid },
+    {
+      $setOnInsert: {
+        userId: businessNumber.assignedTo,
+        phoneNumberId: businessNumber._id,
+        twilioSid: sid,
+        from,
+        to,
+        contactName: contact?.name ?? '',
+        direction: 'inbound',
+        status: 'missed',
+        durationSec: 0,
+        startedAt: new Date(),
+      },
+    },
+    { upsert: true },
+  );
+
   const owner = await User.findById(businessNumber.assignedTo).lean();
   const forwardTo = owner?.personalNumber ?? '';
 
@@ -86,10 +85,18 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // callerId must be a number the account owns, so the business number is
-  // shown rather than the original caller's.
+  // `action` fires when the dial finishes, however it ends. That is how the
+  // call gets its real outcome instead of staying "missed".
+  const { webhookBaseUrl } = await loadTwilioConfig();
+  const action = webhookBaseUrl
+    ? ` action="${escapeXml(
+        `${webhookBaseUrl.replace(/\/$/, '')}/api/twilio/voice/completed`,
+      )}" method="POST"`
+    : '';
+
   return twiml(
-    `<Response><Dial timeout="25" callerId="${escapeXml(businessNumber.phoneNumber)}">` +
+    `<Response><Dial timeout="${RING_SECONDS}"` +
+      ` callerId="${escapeXml(businessNumber.phoneNumber)}"${action}>` +
       `${escapeXml(forwardTo)}</Dial></Response>`,
   );
 }

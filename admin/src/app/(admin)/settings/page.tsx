@@ -10,15 +10,30 @@ import {
 } from '@/components/ui';
 import { decryptSecret, maskSecret } from '@/lib/crypto';
 import { serverAddresses } from '@/lib/network';
-import { loadSettings } from '@/lib/twilio';
+import {
+  loadSettings,
+  loadTwilioConfig,
+  readWebhookState,
+  webhookTargets,
+} from '@/lib/twilio';
 
-import { saveSettingsAction, testConnectionAction } from './actions';
+import {
+  saveSettingsAction,
+  testConnectionAction,
+  wireWebhooksAction,
+} from './actions';
 
 export const dynamic = 'force-dynamic';
 
 export default async function SettingsPage() {
   const settings = await loadSettings();
   const addresses = serverAddresses();
+
+  // Inbound only works when each number's webhooks name this deployment.
+  const { webhookBaseUrl: webhookBase } = await loadTwilioConfig();
+  const targets = webhookTargets(webhookBase || 'https://your-server');
+  const webhooks = webhookBase ? await readWebhookState(webhookBase) : [];
+  const wired = webhooks.filter((entry) => entry.wired).length;
 
   const authTokenSet = Boolean(settings.authTokenEnc);
   const apiSecretSet = Boolean(settings.apiKeySecretEnc);
@@ -162,8 +177,8 @@ export default async function SettingsPage() {
                   id="webhookBaseUrl"
                   name="webhookBaseUrl"
                   className="field"
-                  defaultValue={settings.webhookBaseUrl ?? ''}
-                  placeholder="https://your-tunnel.ngrok.app"
+                  defaultValue={settings.webhookBaseUrl || webhookBase}
+                  placeholder="https://your-app.vercel.app"
                 />
                 <p className="mt-2 text-xs leading-relaxed text-ink-muted">
                   Where Twilio reaches this server. Point each number&apos;s
@@ -229,6 +244,75 @@ export default async function SettingsPage() {
                   submitClassName="w-full"
                 />
               </div>
+            </div>
+          </Card>
+
+          <Card>
+            <CardHeader
+              title="Incoming calls & texts"
+              description="Each number must point at this server, or nothing reaches the app."
+              action={
+                webhookBase && webhooks.length && wired === webhooks.length ? (
+                  <Pill tone="ok" dot>
+                    Receiving
+                  </Pill>
+                ) : (
+                  <Pill tone="warn" dot>
+                    Not receiving
+                  </Pill>
+                )
+              }
+            />
+            <div className="p-5">
+              {!webhookBase ? (
+                <p className="mb-4 text-sm leading-relaxed text-warn">
+                  Set the public webhook base URL above first — Twilio needs a
+                  public address to reach this server.
+                </p>
+              ) : webhooks.length === 0 ? (
+                <p className="mb-4 text-sm leading-relaxed text-ink-soft">
+                  No numbers read from Twilio yet. Save working credentials,
+                  then try again.
+                </p>
+              ) : (
+                <ul className="mb-4 divide-y divide-line">
+                  {webhooks.map((entry) => (
+                    <li
+                      key={entry.phoneNumber}
+                      className="flex items-center justify-between gap-3 py-2.5"
+                    >
+                      <span className="font-mono text-sm text-ink">
+                        {entry.phoneNumber}
+                      </span>
+                      {entry.wired ? (
+                        <Pill tone="ok">Wired</Pill>
+                      ) : (
+                        <Pill tone="warn">Not wired</Pill>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              <p className="mb-4 text-xs leading-relaxed text-ink-muted">
+                Voice{' '}
+                <code className="rounded border border-line bg-sunken px-1.5 py-0.5 font-mono text-ink-soft">
+                  {targets.voice}
+                </code>
+                <br />
+                Messaging{' '}
+                <code className="mt-1 inline-block rounded border border-line bg-sunken px-1.5 py-0.5 font-mono text-ink-soft">
+                  {targets.sms}
+                </code>
+              </p>
+
+              <ActionForm
+                action={wireWebhooksAction}
+                submitLabel="Point numbers at this server"
+                pendingLabel="Updating Twilio…"
+                variant="secondary"
+                submitClassName="w-full"
+              />
             </div>
           </Card>
 
