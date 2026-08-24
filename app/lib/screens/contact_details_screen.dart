@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../core/call_launcher.dart';
 import '../core/session.dart';
 import '../core/theme.dart';
 import '../models/models.dart';
 import '../widgets/async_view.dart';
 import '../widgets/common.dart';
-import 'active_call_screen.dart';
 import 'new_message_screen.dart';
 
 class ContactDetailsScreen extends StatelessWidget {
@@ -20,34 +20,14 @@ class ContactDetailsScreen extends StatelessWidget {
 
   AppSession get _session => session ?? AppSession.instance;
 
-  Future<void> _call(BuildContext context) async {
-    String? callSid;
-    String? warning;
-
-    try {
-      callSid = await _session.placeCall(
-        to: contact.phone,
-        contactName: contact.name,
-      );
-    } catch (error) {
-      warning = error.toString();
-    }
-
-    if (!context.mounted) return;
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ActiveCallScreen(
-          name: contact.name,
-          phone: contact.formattedPhone,
-          rawNumber: contact.phone,
-          contactName: contact.name,
-          role: contact.role,
-          callSid: callSid,
-          warning: warning,
-        ),
-      ),
-    );
-  }
+  Future<void> _call(BuildContext context) => startCall(
+    context,
+    number: contact.phone,
+    contactName: contact.name,
+    displayName: contact.name,
+    role: contact.role,
+    session: session,
+  );
 
   void _message(BuildContext context) {
     Navigator.of(context).push(

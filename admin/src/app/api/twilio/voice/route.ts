@@ -1,7 +1,7 @@
 import type { NextRequest } from 'next/server';
 
 import { connectToDatabase } from '@/lib/db';
-import { CallLog, Contact, PhoneNumber } from '@/lib/models';
+import { CallLog, Contact, PhoneNumber, User } from '@/lib/models';
 
 function twiml(body: string) {
   return new Response(`<?xml version="1.0" encoding="UTF-8"?>${body}`, {
@@ -70,8 +70,26 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Inbound: ring the Voice SDK client registered as the user's id.
+  // Inbound: forward to the phone the user actually answers.
+  //
+  // This used to dial <Client>, which needs the Twilio Voice SDK registered
+  // from the device. The app has no SDK, so nothing was ever listening and
+  // every incoming call rang out. Forwarding to their own handset works with
+  // no SDK at all, and mirrors how outbound already bridges.
+  const owner = await User.findById(businessNumber.assignedTo).lean();
+  const forwardTo = owner?.personalNumber ?? '';
+
+  if (!forwardTo) {
+    return twiml(
+      '<Response><Say>This number is not available right now.</Say>' +
+        '<Hangup/></Response>',
+    );
+  }
+
+  // callerId must be a number the account owns, so the business number is
+  // shown rather than the original caller's.
   return twiml(
-    `<Response><Dial timeout="25"><Client>${escapeXml(String(businessNumber.assignedTo))}</Client></Dial></Response>`,
+    `<Response><Dial timeout="25" callerId="${escapeXml(businessNumber.phoneNumber)}">` +
+      `${escapeXml(forwardTo)}</Dial></Response>`,
   );
 }

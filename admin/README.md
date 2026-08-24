@@ -87,8 +87,17 @@ number at:
 - Messaging: `<base>/api/twilio/sms`
 
 Inbound calls and texts are logged against whichever user owns the number.
-Outbound voice from the app needs the API Key pair + TwiML App SID so
-`/api/mobile/voice-token` can mint a Voice SDK token.
+
+An incoming call **forwards to the owner's own phone** — the same handset
+click-to-call rings — with the business number as the caller ID. It previously
+dialled `<Client>`, which needs the Twilio Voice SDK registered from the
+device; the app has no SDK, so nothing was listening and every incoming call
+rang out. A number whose owner has no phone on file answers with a spoken
+"not available" rather than ringing nowhere.
+
+Incoming only works once Twilio can reach this server, so it needs a public
+webhook base URL (a tunnel such as ngrok or cloudflared during development)
+with each number's Voice webhook pointed at `<base>/api/twilio/voice`.
 
 ## Mobile API
 

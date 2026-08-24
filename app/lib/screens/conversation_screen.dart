@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../core/call_launcher.dart';
 import '../core/session.dart';
 import '../core/theme.dart';
 import '../models/models.dart';
 import '../widgets/common.dart';
-import 'active_call_screen.dart';
 import 'message_details_screen.dart';
 
 class ConversationScreen extends StatefulWidget {
@@ -206,34 +206,13 @@ class _ConversationScreenState extends State<ConversationScreen> {
     );
   }
 
-  Future<void> _callPeer(BuildContext context) async {
-    final conversation = widget.conversation;
-    String? callSid;
-    String? warning;
-
-    try {
-      callSid = await _session.placeCall(
-        to: conversation.peer,
-        contactName: conversation.contactName,
-      );
-    } catch (error) {
-      warning = error.toString();
-    }
-
-    if (!context.mounted) return;
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ActiveCallScreen(
-          name: conversation.displayName,
-          phone: conversation.formattedPeer,
-          rawNumber: conversation.peer,
-          contactName: conversation.contactName,
-          callSid: callSid,
-          warning: warning,
-        ),
-      ),
-    );
-  }
+  Future<void> _callPeer(BuildContext context) => startCall(
+    context,
+    number: widget.conversation.peer,
+    contactName: widget.conversation.contactName,
+    displayName: widget.conversation.displayName,
+    session: widget.session,
+  );
 }
 
 class _DayDivider extends StatelessWidget {

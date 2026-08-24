@@ -77,7 +77,12 @@ The app has no in-device audio stack, so a call is a bridge: Twilio rings
 **your own phone** first, and when you answer it connects the person you
 dialled, showing your business number as the caller ID.
 
-An admin sets that phone on the user's page in the panel. Until then the dialler
+You are asked for that phone the first time you press call, and it can be
+changed later under **Settings → Your phone**; an admin can also set it on the
+user's page in the panel.
+
+Incoming calls forward to the same phone, so they need no in-app audio either —
+but only once the server has a public webhook URL Twilio can reach. Until then the dialler
 reports `409` with the reason rather than failing silently.
 
 The screen shows *Calling…*, then *Ringing…* once Twilio reports the far end is

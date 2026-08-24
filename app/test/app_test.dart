@@ -3,7 +3,10 @@ import 'dart:io';
 import 'package:business_connect/core/api_client.dart';
 import 'package:business_connect/core/countries.dart';
 import 'package:business_connect/core/format.dart';
+import 'package:business_connect/core/session.dart';
 import 'package:business_connect/core/theme.dart';
+import 'package:business_connect/models/models.dart';
+import 'package:business_connect/screens/contact_details_screen.dart';
 import 'package:business_connect/screens/call_history_screen.dart';
 import 'package:business_connect/screens/contacts_screen.dart';
 import 'package:business_connect/screens/conversation_screen.dart';
@@ -363,6 +366,65 @@ void main() {
 
       expect(server.placedCalls, hasLength(1));
       expect(find.text('Calling…'), findsOneWidget);
+    });
+
+
+    testWidgets('every screen that offers a call actually dials', (
+      tester,
+    ) async {
+      // These paths drifted once already: history opened the call screen
+      // without dialling, and contacts/details/conversation never asked for
+      // the phone to bridge to, so they failed silently.
+      final contact = Contact(
+        id: 'c1',
+        name: 'Sarah Jenkins',
+        phone: '+919876500001',
+      );
+
+      final entries = <String, (Widget Function(AppSession), Finder)>{
+        'contacts': (
+          (s) => ContactsScreen(session: s),
+          find.byTooltip('Call'),
+        ),
+        'contact details': (
+          (s) => ContactDetailsScreen(contact: contact, session: s),
+          find.text('Call'),
+        ),
+        'history': (
+          (s) => CallHistoryScreen(session: s),
+          find.byTooltip('Call back'),
+        ),
+      };
+
+      for (final entry in entries.entries) {
+        final (build, button) = entry.value;
+        // Tear the previous tree down: Navigator state survives pumpWidget
+        // when the root widget type matches, so the call screen pushed by the
+        // last iteration would still be on top.
+        await tester.pumpWidget(const SizedBox.shrink());
+        usePhoneViewport(tester);
+        final server = FakeServer()..personalNumber = '+919876543210';
+        final session = await signedInSession(server);
+
+        await tester.pumpWidget(wrap(build(session)));
+        await tester.pumpAndSettle();
+
+        expect(
+          button,
+          findsWidgets,
+          reason: '${entry.key} should offer a call button',
+        );
+
+        await tester.tap(button.first);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 200));
+
+        expect(
+          server.placedCalls,
+          hasLength(1),
+          reason: '${entry.key} must place the call, not just open the screen',
+        );
+      }
     });
 
     testWidgets('hanging up ends the call on Twilio, not just the screen', (

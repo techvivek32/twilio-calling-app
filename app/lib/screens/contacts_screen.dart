@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../core/call_launcher.dart';
 import '../core/session.dart';
 import '../core/theme.dart';
 import '../models/models.dart';
 import '../widgets/async_view.dart';
 import '../widgets/common.dart';
-import 'active_call_screen.dart';
 import 'contact_details_screen.dart';
 
 class ContactsScreen extends StatefulWidget {
@@ -115,7 +115,10 @@ class _ContactsScreenState extends State<ContactsScreen> {
                           separatorBuilder: (_, _) =>
                               const SizedBox(height: AppSpace.md),
                           itemBuilder: (context, index) =>
-                              _ContactTile(contact: filtered[index]),
+                              _ContactTile(
+                                contact: filtered[index],
+                                session: widget.session,
+                              ),
                         ),
                 );
               },
@@ -128,9 +131,10 @@ class _ContactsScreenState extends State<ContactsScreen> {
 }
 
 class _ContactTile extends StatelessWidget {
-  const _ContactTile({required this.contact});
+  const _ContactTile({required this.contact, this.session});
 
   final Contact contact;
+  final AppSession? session;
 
   @override
   Widget build(BuildContext context) {
@@ -138,7 +142,10 @@ class _ContactTile extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpace.md),
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => ContactDetailsScreen(contact: contact),
+          builder: (_) => ContactDetailsScreen(
+            contact: contact,
+            session: session,
+          ),
         ),
       ),
       child: Row(
@@ -182,33 +189,12 @@ class _ContactTile extends StatelessWidget {
     );
   }
 
-  Future<void> _call(BuildContext context) async {
-    final session = AppSession.instance;
-    String? callSid;
-    String? warning;
-
-    try {
-      callSid = await session.placeCall(
-        to: contact.phone,
-        contactName: contact.name,
-      );
-    } catch (error) {
-      warning = error.toString();
-    }
-
-    if (!context.mounted) return;
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ActiveCallScreen(
-          name: contact.name,
-          phone: contact.formattedPhone,
-          rawNumber: contact.phone,
-          contactName: contact.name,
-          role: contact.role,
-          callSid: callSid,
-          warning: warning,
-        ),
-      ),
-    );
-  }
+  Future<void> _call(BuildContext context) => startCall(
+    context,
+    number: contact.phone,
+    contactName: contact.name,
+    displayName: contact.name,
+    role: contact.role,
+    session: session,
+  );
 }

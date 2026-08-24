@@ -37,3 +37,25 @@ test.describe('number normalisation', () => {
     expect(looksLikeE164('8140126027')).toBe(false);
   });
 });
+
+test.describe('inbound forwarding', () => {
+  test('rings the user, not a Voice SDK client that is not there', async ({
+    request,
+  }) => {
+    // The app registers no Twilio Voice client, so <Client> rang out every
+    // time. Inbound must reach the handset the user actually answers.
+    const response = await request.post('/api/twilio/voice', {
+      form: {
+        From: '+919876500123',
+        To: '+10000000000',
+        CallSid: 'CAinboundtest',
+        Direction: 'inbound',
+      },
+    });
+
+    const body = await response.text();
+    expect(body).not.toContain('<Client>');
+    // An unknown number is refused rather than dialled blindly.
+    expect(body).toContain('not in service');
+  });
+});

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../core/format.dart';
+import '../core/call_launcher.dart';
 import '../core/session.dart';
 import '../core/theme.dart';
 import '../widgets/common.dart';
-import 'active_call_screen.dart';
 import 'new_message_screen.dart';
 
 class CallEndedScreen extends StatelessWidget {
@@ -35,34 +35,14 @@ class CallEndedScreen extends StatelessWidget {
 
   String get _dialTarget => rawNumber ?? phone;
 
-  Future<void> _callAgain(BuildContext context) async {
-    String? callSid;
-    String? warning;
-
-    try {
-      callSid = await _session.placeCall(
-        to: _dialTarget,
-        contactName: contactName,
-      );
-    } catch (error) {
-      warning = error.toString();
-    }
-
-    if (!context.mounted) return;
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (_) => ActiveCallScreen(
-          name: name,
-          phone: phone.isEmpty ? name : phone,
-          rawNumber: rawNumber,
-          contactName: contactName,
-          role: role,
-          callSid: callSid,
-          warning: warning,
-        ),
-      ),
-    );
-  }
+  Future<void> _callAgain(BuildContext context) => startCall(
+    context,
+    number: _dialTarget,
+    contactName: contactName,
+    displayName: name,
+    role: role,
+    session: session,
+  );
 
   @override
   Widget build(BuildContext context) {

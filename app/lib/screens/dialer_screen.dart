@@ -8,8 +8,7 @@ import '../core/theme.dart';
 import '../models/models.dart';
 import '../widgets/common.dart';
 import '../widgets/country_picker.dart';
-import '../widgets/personal_number_prompt.dart';
-import 'active_call_screen.dart';
+import '../core/call_launcher.dart';
 
 /// Groups the national part of a number for readability while it is typed.
 ///
@@ -201,44 +200,20 @@ class _DialerScreenState extends State<DialerScreen> {
       return;
     }
 
-    // Click-to-call needs a handset to bridge to. Ask for it here rather than
-    // refusing the call and sending the user off to another screen.
-    if (!await ensurePersonalNumber(context, _session)) return;
-    if (!mounted) return;
-
     final match = _match;
-    final name = match?.name ?? formatDialedNumber(_country, _digits);
 
     setState(() => _placing = true);
-    String? callSid;
-    String? warning;
-
     try {
-      callSid = await _session.placeCall(
-        to: target,
+      await startCall(
+        context,
+        number: target,
         contactName: match?.name ?? '',
+        displayName: match?.name ?? formatDialedNumber(_country, _digits),
+        session: widget.session,
       );
-    } catch (error) {
-      warning = error.toString();
     } finally {
       if (mounted) setState(() => _placing = false);
     }
-
-    if (!mounted) return;
-
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ActiveCallScreen(
-          name: name,
-          phone: formatDialedNumber(_country, _digits),
-          rawNumber: target,
-          contactName: match?.name ?? '',
-          callSid: callSid,
-          warning: warning,
-          session: widget.session,
-        ),
-      ),
-    );
   }
 
   void _toast(String message) {
