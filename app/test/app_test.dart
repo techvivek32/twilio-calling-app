@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:business_connect/core/api_client.dart';
+import 'package:business_connect/core/countries.dart';
 import 'package:business_connect/core/format.dart';
 import 'package:business_connect/core/theme.dart';
 import 'package:business_connect/screens/call_history_screen.dart';
@@ -27,24 +28,49 @@ Widget wrap(Widget child) => MaterialApp(
 
 void main() {
   group('formatting', () {
-    test('formats a full US number as it is dialled', () {
-      expect(formatDialedNumber('12025550199'), '+1 (202) 555-0199');
-      expect(formatDialedNumber('1202'), '+1 (202');
-      expect(formatDialedNumber(''), '');
-    });
+    final india = CountryLookup.byIso('IN')!;
+    final us = CountryLookup.byIso('US')!;
 
-    test('keeps digits beyond a US-length number', () {
-      expect(formatDialedNumber('447700900123'), '+447700900123');
+    test('shows the picked country code with the typed digits', () {
+      expect(formatDialedNumber(india, '8140126027'), '+91 81401 26027');
+      expect(formatDialedNumber(us, '2025550199'), '+1 20255 50199');
+      expect(formatDialedNumber(india, ''), '');
     });
 
     test('renders stored E.164 numbers for display', () {
       expect(formatPhoneNumber('+15550123456'), '+1 (555) 012-3456');
     });
 
-    test('normalises typed input to E.164', () {
-      expect(toE164('(555) 012-3456'), '+15550123456');
-      expect(toE164('+44 7700 900123'), '+447700900123');
-      expect(toE164(''), '');
+    test('composes a national number with the chosen country', () {
+      // The bug this replaces: a 10-digit Indian mobile was assumed to be
+      // American, producing the invalid +18140126027 that Twilio rejected.
+      expect(toE164(india, '8140126027'), '+918140126027');
+      expect(toE164(us, '(202) 555-0199'), '+12025550199');
+      expect(toE164(india, ''), '');
+    });
+
+    test('drops a national trunk zero', () {
+      final uk = CountryLookup.byIso('GB')!;
+      expect(toE164(uk, '07700900123'), '+447700900123');
+    });
+
+    test('cleans an already-international number without guessing', () {
+      expect(normaliseE164('+44 7700 900123'), '+447700900123');
+      expect(normaliseE164('(555) 012-3456'), '+5550123456');
+      expect(normaliseE164(''), '');
+    });
+
+    test('recognises which country an E.164 number belongs to', () {
+      expect(CountryLookup.fromE164('+918140126027')?.iso, 'IN');
+      expect(CountryLookup.fromE164('+18259070036')?.iso, 'US');
+      // Longest prefix wins, so +971 is the UAE rather than +9-something.
+      expect(CountryLookup.fromE164('+971501234567')?.iso, 'AE');
+    });
+
+    test('rejects incomplete numbers', () {
+      expect(looksLikeE164('+918140126027'), isTrue);
+      expect(looksLikeE164('+9181401'), isFalse);
+      expect(looksLikeE164('8140126027'), isFalse);
     });
 
     test('formats call durations', () {
@@ -227,19 +253,69 @@ void main() {
       final session = await signedInSession(server);
 
       await tester.pumpWidget(
-        wrap(DialerScreen(session: session, initialDigits: '12025550199')),
+        wrap(DialerScreen(session: session, initialNumber: '+12025550199')),
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('+1 (202) 555-0199'), findsOneWidget);
+      expect(find.text('+1 20255 50199'), findsOneWidget);
       expect(find.text('Acme Corporation'), findsOneWidget);
 
       await tester.tap(find.byTooltip('Call'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
 
       expect(server.placedCalls, hasLength(1));
       expect(server.placedCalls.first['to'], '+12025550199');
+
+      // A placed call is not an answered one: no clock until it connects.
+      expect(find.text('DIALLING VIA TWILIO'), findsOneWidget);
+      expect(find.text('Calling…'), findsOneWidget);
+      expect(find.text('00:00'), findsNothing);
+
+      server.callStatus = 'ringing';
+      await tester.pump(const Duration(seconds: 2));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text('Ringing…'), findsOneWidget);
+      expect(find.text('RINGING'), findsOneWidget);
+      expect(find.text('00:00'), findsNothing);
+
+      // Only once the far end picks up does the timer appear and run.
+      server.callStatus = 'in-progress';
+      await tester.pump(const Duration(seconds: 2));
+      await tester.pump(const Duration(milliseconds: 100));
       expect(find.text('CONNECTED VIA TWILIO'), findsOneWidget);
+      expect(find.text('00:00'), findsOneWidget);
+      expect(find.text('Ringing…'), findsNothing);
+
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.text('00:01'), findsOneWidget);
+    });
+
+    testWidgets('an unanswered call reports why it ended', (tester) async {
+      usePhoneViewport(tester);
+      final server = FakeServer();
+      final session = await signedInSession(server);
+
+      await tester.pumpWidget(
+        wrap(
+          DialerScreen(session: session, initialNumber: '+12025550199'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Call'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      server.callStatus = 'no-answer';
+      await tester.pump(const Duration(seconds: 2));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text('No answer'), findsOneWidget);
+
+      // It then moves on to the summary, carrying the outcome across.
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pumpAndSettle();
+      expect(find.text('No answer'), findsOneWidget);
     });
 
     testWidgets('keypad edits the dialled number', (tester) async {
@@ -247,7 +323,7 @@ void main() {
       final session = await signedInSession(FakeServer());
 
       await tester.pumpWidget(
-        wrap(DialerScreen(session: session, initialDigits: '12025550199')),
+        wrap(DialerScreen(session: session, initialNumber: '+12025550199')),
       );
       await tester.pumpAndSettle();
 
@@ -256,7 +332,7 @@ void main() {
       await tester.tap(find.text('7'));
       await tester.pump();
 
-      expect(find.text('+1 (202) 555-0197'), findsOneWidget);
+      expect(find.text('+1 20255 50197'), findsOneWidget);
     });
 
     testWidgets('dialer reports when no number is assigned', (tester) async {
@@ -264,7 +340,7 @@ void main() {
       final session = await signedInSession(FakeServer(assignNumber: false));
 
       await tester.pumpWidget(
-        wrap(DialerScreen(session: session, initialDigits: '12025550199')),
+        wrap(DialerScreen(session: session, initialNumber: '+12025550199')),
       );
       await tester.pumpAndSettle();
 

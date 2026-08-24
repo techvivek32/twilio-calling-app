@@ -27,6 +27,11 @@ class FakeServer {
 
   static final String _now = DateTime.now().toUtc().toIso8601String();
 
+  /// Twilio call status returned by /api/mobile/calls/status, so tests can
+  /// walk a call through dialling, ringing, answered and ended.
+  String callStatus = 'queued';
+  int callDuration = 0;
+
   /// Overrides for the health probe, so tests can stand in for a wrong
   /// address or an admin panel that cannot reach MongoDB.
   Map<String, dynamic>? healthBody;
@@ -57,6 +62,25 @@ class FakeServer {
           : jsonDecode(request.body) as Map<String, dynamic>;
 
       switch ('${request.method} $path') {
+        case 'GET /api/mobile/calls/status':
+          const dialling = {'queued', 'initiated'};
+          const finished = {
+            'completed',
+            'busy',
+            'failed',
+            'no-answer',
+            'canceled',
+          };
+          return _json({
+            'sid': request.url.queryParameters['sid'],
+            'status': callStatus,
+            'dialling': dialling.contains(callStatus),
+            'ringing': callStatus == 'ringing',
+            'answered': callStatus == 'in-progress',
+            'ended': finished.contains(callStatus),
+            'durationSec': callDuration,
+          });
+
         case 'GET /api/mobile/health':
           if (healthBody != null) return _json(healthBody!, healthStatus);
           return _json({

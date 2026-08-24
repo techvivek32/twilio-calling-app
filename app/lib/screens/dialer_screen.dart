@@ -1,46 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../core/countries.dart';
 import '../core/format.dart';
 import '../core/session.dart';
 import '../core/theme.dart';
 import '../models/models.dart';
 import '../widgets/common.dart';
+import '../widgets/country_picker.dart';
 import 'active_call_screen.dart';
 
-/// Formats a raw digit string into +1 (XXX) XXX-XXXX as it is typed.
-String formatDialedNumber(String digits) {
+/// Groups the national part of a number for readability while it is typed.
+///
+/// Deliberately country-agnostic: the dialled country comes from the picker,
+/// so this only spaces the digits rather than imposing a US pattern.
+String formatNationalDigits(String digits) {
   if (digits.isEmpty) return '';
-  // Longer than a US number (1 + 10 digits): show it raw rather than truncate.
-  if (digits.length > 11) return '+$digits';
-
-  final buffer = StringBuffer();
-  var rest = digits;
-
-  if (rest.startsWith('1') && rest.length > 1) {
-    buffer.write('+1 ');
-    rest = rest.substring(1);
-  } else if (rest == '1') {
-    return '+1';
+  final groups = <String>[];
+  for (var i = 0; i < digits.length; i += 5) {
+    groups.add(digits.substring(i, (i + 5).clamp(0, digits.length)));
   }
+  return groups.join(' ');
+}
 
-  if (rest.isEmpty) return buffer.toString().trimRight();
-
-  final area = rest.substring(0, rest.length.clamp(0, 3));
-  if (rest.length <= 3) {
-    buffer.write('($area');
-    return buffer.toString();
-  }
-  buffer.write('($area) ');
-
-  final middle = rest.substring(3, rest.length.clamp(3, 6));
-  if (rest.length <= 6) {
-    buffer.write(middle);
-    return buffer.toString();
-  }
-  buffer.write('$middle-');
-  buffer.write(rest.substring(6, rest.length.clamp(6, 10)));
-  return buffer.toString();
+/// What the dialler shows above the keypad.
+String formatDialedNumber(Country country, String digits) {
+  if (digits.isEmpty) return '';
+  return '${country.plusCode} ${formatNationalDigits(digits)}'.trimRight();
 }
 
 class DialerScreen extends StatefulWidget {
@@ -48,29 +34,67 @@ class DialerScreen extends StatefulWidget {
     super.key,
     this.onShowHistory,
     this.session,
-    this.initialDigits = '',
+    this.initialNumber = '',
   });
 
   final VoidCallback? onShowHistory;
   final AppSession? session;
-  final String initialDigits;
+
+  /// Prefilled number. A leading `+` is split into its country and national
+  /// part; anything else is treated as national digits.
+  final String initialNumber;
 
   @override
   State<DialerScreen> createState() => _DialerScreenState();
 }
 
 class _DialerScreenState extends State<DialerScreen> {
-  late String _digits = widget.initialDigits;
+  String _digits = '';
   List<Contact> _contacts = const [];
   bool _placing = false;
+  Country _country = kDefaultCountry;
 
   AppSession get _session => widget.session ?? AppSession.instance;
 
   @override
   void initState() {
     super.initState();
+
+    if (widget.initialNumber.startsWith('+')) {
+      final (country, national) = CountryLookup.split(widget.initialNumber);
+      _country = country;
+      _digits = national;
+    } else {
+      _country = _initialCountry();
+      _digits = digitsOnly(widget.initialNumber);
+    }
+
     _loadContacts();
   }
+
+  /// Last country the user picked, else the country of their own Twilio
+  /// number, else the default.
+  Country _initialCountry() {
+    final saved = _session.dialCountryIso;
+    if (saved != null) {
+      final match = CountryLookup.byIso(saved);
+      if (match != null) return match;
+    }
+    final own = _session.number?.phoneNumber;
+    if (own != null) {
+      final match = CountryLookup.fromE164(own);
+      if (match != null) return match;
+    }
+    return kDefaultCountry;
+  }
+
+  void _selectCountry(Country country) {
+    setState(() => _country = country);
+    _session.setDialCountry(country.iso);
+  }
+
+  /// The full international number the keypad currently represents.
+  String get _e164 => toE164(_country, _digits);
 
   Future<void> _loadContacts() async {
     try {
@@ -122,7 +146,7 @@ class _DialerScreenState extends State<DialerScreen> {
           autofocus: true,
           decoration: InputDecoration(
             labelText: 'Name',
-            hintText: formatDialedNumber(_digits),
+            hintText: formatDialedNumber(_country, _digits),
           ),
         ),
         actions: [
@@ -143,7 +167,7 @@ class _DialerScreenState extends State<DialerScreen> {
     if (name == null || name.isEmpty || !mounted) return;
 
     try {
-      await _session.addContact(name: name, phone: _digits);
+      await _session.addContact(name: name, phone: _e164);
       await _loadContacts();
       if (!mounted) return;
       ScaffoldMessenger.of(context)
@@ -167,8 +191,17 @@ class _DialerScreenState extends State<DialerScreen> {
       return;
     }
 
+    final target = _e164;
+    if (!looksLikeE164(target)) {
+      _toast(
+        'That is not a complete ${_country.name} number. Check the digits and '
+        'the country code.',
+      );
+      return;
+    }
+
     final match = _match;
-    final name = match?.name ?? formatDialedNumber(_digits);
+    final name = match?.name ?? formatDialedNumber(_country, _digits);
 
     setState(() => _placing = true);
     String? callSid;
@@ -176,7 +209,7 @@ class _DialerScreenState extends State<DialerScreen> {
 
     try {
       callSid = await _session.placeCall(
-        to: _digits,
+        to: target,
         contactName: match?.name ?? '',
       );
     } catch (error) {
@@ -191,11 +224,12 @@ class _DialerScreenState extends State<DialerScreen> {
       MaterialPageRoute(
         builder: (_) => ActiveCallScreen(
           name: name,
-          phone: formatDialedNumber(_digits),
-          rawNumber: _digits,
+          phone: formatDialedNumber(_country, _digits),
+          rawNumber: target,
           contactName: match?.name ?? '',
           callSid: callSid,
           warning: warning,
+          session: widget.session,
         ),
       ),
     );
@@ -210,7 +244,7 @@ class _DialerScreenState extends State<DialerScreen> {
   @override
   Widget build(BuildContext context) {
     final match = _match;
-    final formatted = formatDialedNumber(_digits);
+    final formatted = formatDialedNumber(_country, _digits);
     final number = _session.number;
 
     return Column(
@@ -258,6 +292,12 @@ class _DialerScreenState extends State<DialerScreen> {
                           ),
                         ] else
                           const SizedBox(height: 46),
+                        const SizedBox(height: AppSpace.md),
+                        CountryCodeButton(
+                          country: _country,
+                          onChanged: _selectCountry,
+                          enabled: !_placing,
+                        ),
                         const SizedBox(height: AppSpace.md),
                         Row(
                           children: [

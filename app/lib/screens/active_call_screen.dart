@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../core/format.dart';
 import '../core/session.dart';
+import '../models/models.dart';
 import '../core/theme.dart';
 import '../widgets/common.dart';
 import 'call_ended_screen.dart';
@@ -40,13 +41,22 @@ class ActiveCallScreen extends StatefulWidget {
   State<ActiveCallScreen> createState() => _ActiveCallScreenState();
 }
 
+/// What the call is doing right now.
+enum CallPhase { connecting, ringing, connected, ended }
+
 class _ActiveCallScreenState extends State<ActiveCallScreen> {
   Timer? _timer;
+  Timer? _poll;
   int _seconds = 0;
   bool _muted = false;
   bool _speaker = false;
   bool _onHold = false;
   bool _ending = false;
+
+  /// Starts as "connecting"; the timer only runs once Twilio reports that the
+  /// far end actually answered.
+  CallPhase _phase = CallPhase.connecting;
+  String _outcome = 'Call ended';
 
   AppSession get _session => widget.session ?? AppSession.instance;
 
@@ -55,9 +65,15 @@ class _ActiveCallScreenState extends State<ActiveCallScreen> {
   @override
   void initState() {
     super.initState();
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!_onHold && mounted) setState(() => _seconds++);
-    });
+
+    if (_live) {
+      _watchCall();
+    } else {
+      // Nothing was placed, so there is nothing to ring. Show the failure and
+      // let the user hang up.
+      _phase = CallPhase.ended;
+      _outcome = 'Not connected';
+    }
 
     if (widget.warning != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -72,13 +88,70 @@ class _ActiveCallScreenState extends State<ActiveCallScreen> {
   @override
   void dispose() {
     _timer?.cancel();
+    _poll?.cancel();
     super.dispose();
   }
 
+  /// Polls Twilio until the call is answered or finished.
+  void _watchCall() {
+    _poll = Timer.periodic(const Duration(seconds: 2), (_) => _refresh());
+    _refresh();
+  }
+
+  Future<void> _refresh() async {
+    final sid = widget.callSid;
+    if (sid == null || !mounted || _ending) return;
+
+    final CallProgress progress;
+    try {
+      progress = await _session.callProgress(sid);
+    } catch (_) {
+      // A blip in polling should not drop the call UI; try again next tick.
+      return;
+    }
+    if (!mounted) return;
+
+    if (progress.ended) {
+      _poll?.cancel();
+      _timer?.cancel();
+      setState(() {
+        _phase = CallPhase.ended;
+        _outcome = progress.outcomeLabel;
+        if (progress.durationSec > 0) _seconds = progress.durationSec;
+      });
+      // Let the outcome register before moving on.
+      await Future<void>.delayed(const Duration(milliseconds: 900));
+      if (mounted) await _finish();
+      return;
+    }
+
+    if (progress.answered && _phase != CallPhase.connected) {
+      setState(() {
+        _phase = CallPhase.connected;
+        _seconds = progress.durationSec;
+      });
+      _startTimer();
+      return;
+    }
+
+    if (!progress.answered && progress.ringing && _phase == CallPhase.connecting) {
+      setState(() => _phase = CallPhase.ringing);
+    }
+  }
+
+  void _startTimer() {
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!_onHold && mounted) setState(() => _seconds++);
+    });
+  }
+
+  /// Hangs up from this end.
   Future<void> _endCall() async {
     if (_ending) return;
     setState(() => _ending = true);
     _timer?.cancel();
+    _poll?.cancel();
 
     // Record the call so it reaches history and the admin panel. A live call
     // was already logged server-side when Twilio accepted it.
@@ -95,7 +168,16 @@ class _ActiveCallScreenState extends State<ActiveCallScreen> {
       }
     }
 
+    await _finish();
+  }
+
+  /// Moves on to the summary screen.
+  Future<void> _finish() async {
     if (!mounted) return;
+    _ending = true;
+    _timer?.cancel();
+    _poll?.cancel();
+
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (_) => CallEndedScreen(
@@ -105,6 +187,8 @@ class _ActiveCallScreenState extends State<ActiveCallScreen> {
           contactName: widget.contactName,
           role: widget.role,
           durationLabel: formatDuration(_seconds),
+          outcome: _outcome,
+          session: widget.session,
         ),
       ),
     );
@@ -183,17 +267,21 @@ class _ActiveCallScreenState extends State<ActiveCallScreen> {
                       ),
                     ),
                     const SizedBox(height: AppSpace.xl),
-                    Text(
-                      formatClock(_seconds),
-                      style: const TextStyle(
-                        fontSize: 40,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.5,
-                        fontFeatures: [FontFeature.tabularFigures()],
-                      ),
-                    ),
+                    // Only a connected call has a duration worth showing.
+                    if (_phase == CallPhase.connected)
+                      Text(
+                        formatClock(_seconds),
+                        style: const TextStyle(
+                          fontSize: 40,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.5,
+                          fontFeatures: [FontFeature.tabularFigures()],
+                        ),
+                      )
+                    else
+                      _PhaseLabel(phase: _phase, outcome: _outcome),
                     const SizedBox(height: AppSpace.md),
-                    _StatusPillRow(live: _live, onHold: _onHold),
+                    _StatusPillRow(live: _live, onHold: _onHold, phase: _phase),
                     const SizedBox(height: AppSpace.xxl),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -266,20 +354,60 @@ class _ActiveCallScreenState extends State<ActiveCallScreen> {
   }
 }
 
+/// Big word shown in place of the clock while the call is not yet answered.
+class _PhaseLabel extends StatelessWidget {
+  const _PhaseLabel({required this.phase, required this.outcome});
+
+  final CallPhase phase;
+  final String outcome;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = switch (phase) {
+      CallPhase.connecting => 'Calling…',
+      CallPhase.ringing => 'Ringing…',
+      CallPhase.ended => outcome,
+      CallPhase.connected => '',
+    };
+
+    return Text(
+      text,
+      style: TextStyle(
+        fontSize: 30,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.4,
+        color: phase == CallPhase.ended
+            ? AppColors.textSecondary
+            : AppColors.textPrimary,
+      ),
+    );
+  }
+}
+
 class _StatusPillRow extends StatelessWidget {
-  const _StatusPillRow({required this.live, required this.onHold});
+  const _StatusPillRow({
+    required this.live,
+    required this.onHold,
+    required this.phase,
+  });
 
   final bool live;
   final bool onHold;
+  final CallPhase phase;
 
   @override
   Widget build(BuildContext context) {
     final label = onHold
         ? 'ON HOLD'
-        : live
-        ? 'CONNECTED VIA TWILIO'
-        : 'NOT CONNECTED';
-    final color = live && !onHold ? AppColors.primary : AppColors.textMuted;
+        : switch (phase) {
+            CallPhase.connecting => 'DIALLING VIA TWILIO',
+            CallPhase.ringing => 'RINGING',
+            CallPhase.connected => 'CONNECTED VIA TWILIO',
+            CallPhase.ended => live ? 'CALL ENDED' : 'NOT CONNECTED',
+          };
+    final color = phase == CallPhase.connected && !onHold
+        ? AppColors.primary
+        : AppColors.textMuted;
 
     return Container(
       padding: const EdgeInsets.symmetric(

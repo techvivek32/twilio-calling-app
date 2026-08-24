@@ -19,13 +19,16 @@ String formatPhoneNumber(String value) {
 }
 
 /// Normalises typed input to E.164 before sending it to the server.
-String toE164(String input, {String defaultCountry = '1'}) {
+/// Cleans an already-international number without inventing a country code.
+///
+/// Assuming `+1` for any 10-digit input silently turned foreign numbers into
+/// invalid US ones, which Twilio rejected. National numbers are combined with
+/// an explicit country by `toE164` in `core/countries.dart` instead.
+String normaliseE164(String input) {
   final trimmed = input.trim();
-  if (trimmed.startsWith('+')) return '+${digitsOnly(trimmed)}';
-
+  if (trimmed.isEmpty) return '';
   final digits = digitsOnly(trimmed);
   if (digits.isEmpty) return '';
-  if (digits.length == 10) return '+$defaultCountry$digits';
   return '+$digits';
 }
 

@@ -12,6 +12,7 @@ class CallEndedScreen extends StatelessWidget {
     super.key,
     required this.name,
     required this.durationLabel,
+    this.outcome = 'Call Ended',
     this.phone = '',
     this.rawNumber,
     this.contactName = '',
@@ -21,6 +22,9 @@ class CallEndedScreen extends StatelessWidget {
 
   final String name;
   final String durationLabel;
+
+  /// How the call finished, e.g. 'Busy' or 'No answer'.
+  final String outcome;
   final String phone;
   final String? rawNumber;
   final String contactName;
@@ -100,7 +104,7 @@ class CallEndedScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: AppSpace.xl),
                   Text(
-                    'Call Ended',
+                    outcome,
                     style: Theme.of(context).textTheme.headlineMedium,
                   ),
                   const SizedBox(height: AppSpace.xl),

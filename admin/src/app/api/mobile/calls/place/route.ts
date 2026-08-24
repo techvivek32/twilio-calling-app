@@ -3,7 +3,12 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { connectToDatabase } from '@/lib/db';
 import { fail, json, readJson, requireMobileUser } from '@/lib/mobile';
 import { CallLog } from '@/lib/models';
-import { TwilioNotConfiguredError, placeCall, toE164 } from '@/lib/twilio';
+import {
+  TwilioNotConfiguredError,
+  looksLikeE164,
+  placeCall,
+  toE164,
+} from '@/lib/twilio';
 
 type PlaceCallBody = { to?: string; contactName?: string };
 
@@ -18,6 +23,13 @@ export async function POST(request: NextRequest) {
   const body = await readJson<PlaceCallBody>(request);
   const to = toE164(body?.to ?? '');
   if (!to) return fail('A "to" number is required.', 422);
+  if (!looksLikeE164(to)) {
+    return fail(
+      'Enter the number in full international form, including the country ' +
+        'code — for example +91 81401 26027.',
+      422,
+    );
+  }
 
   if (!context.number) {
     return fail(

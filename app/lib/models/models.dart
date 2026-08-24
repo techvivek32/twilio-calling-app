@@ -365,3 +365,39 @@ class HomeSummary {
 
   bool get hasLatestMessage => latestSender.isNotEmpty;
 }
+
+/// Live state of an outbound call, as reported by Twilio.
+class CallProgress {
+  const CallProgress({
+    required this.status,
+    required this.ringing,
+    required this.answered,
+    required this.ended,
+    required this.durationSec,
+  });
+
+  factory CallProgress.fromJson(Map<String, dynamic> json) => CallProgress(
+    status: json['status']?.toString() ?? 'queued',
+    ringing: json['ringing'] == true,
+    answered: json['answered'] == true,
+    ended: json['ended'] == true,
+    durationSec: (json['durationSec'] as num?)?.toInt() ?? 0,
+  );
+
+  /// Twilio's own status: queued, ringing, in-progress, completed, busy,
+  /// failed, no-answer or canceled.
+  final String status;
+  final bool ringing;
+  final bool answered;
+  final bool ended;
+  final int durationSec;
+
+  /// How the call finished, in the wording the app shows.
+  String get outcomeLabel => switch (status) {
+    'busy' => 'Busy',
+    'no-answer' => 'No answer',
+    'failed' => 'Call failed',
+    'canceled' => 'Canceled',
+    _ => 'Call ended',
+  };
+}

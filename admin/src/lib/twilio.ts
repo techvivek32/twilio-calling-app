@@ -168,14 +168,32 @@ export async function createVoiceAccessToken(
   return token.toJwt();
 }
 
-/** Normalises user input to E.164 so lookups and Twilio calls agree. */
-export function toE164(input: string, defaultCountry = '1'): string {
+/**
+ * Normalises user input to E.164 so lookups and Twilio calls agree.
+ *
+ * A bare national number is NOT assumed to be American. Guessing `+1` for any
+ * 10-digit input turned Indian mobiles into invalid US numbers, which Twilio
+ * rejected outright — so callers must supply the country code, and the app
+ * sends a full `+…` number from its country picker.
+ */
+export function toE164(input: string): string {
   const trimmed = input.trim();
-  if (trimmed.startsWith('+')) return `+${trimmed.slice(1).replace(/\D/g, '')}`;
+  if (!trimmed) return '';
+  if (trimmed.startsWith('+')) {
+    const digits = trimmed.slice(1).replace(/\D/g, '');
+    return digits ? `+${digits}` : '';
+  }
+
   const digits = trimmed.replace(/\D/g, '');
   if (!digits) return '';
-  if (digits.length === 10) return `+${defaultCountry}${digits}`;
+  // Assume it is already E.164 without its plus, rather than inventing a
+  // country. Genuinely national input is rejected by the caller instead.
   return `+${digits}`;
+}
+
+/** True when [value] is plausibly a full international number. */
+export function looksLikeE164(value: string): boolean {
+  return /^\+[1-9]\d{7,14}$/.test(value);
 }
 
 /** Formats E.164 US numbers as +1 (555) 012-3456 for display. */

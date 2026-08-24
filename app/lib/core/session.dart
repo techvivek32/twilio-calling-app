@@ -17,6 +17,7 @@ class AppSession extends ChangeNotifier {
   static const _userKey = 'bc.user';
   static const _numberKey = 'bc.number';
   static const _serverKey = 'bc.server';
+  static const _countryKey = 'bc.country';
 
   final ApiClient api;
 
@@ -31,10 +32,21 @@ class AppSession extends ChangeNotifier {
   bool get restored => _restored;
   String get serverUrl => api.baseUrl;
 
+  /// ISO code of the country last chosen in the dialler, if any.
+  String? _dialCountryIso;
+  String? get dialCountryIso => _dialCountryIso;
+
+  Future<void> setDialCountry(String iso) async {
+    _dialCountryIso = iso;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_countryKey, iso);
+  }
+
   /// Reads a persisted session so a returning user skips the login screen.
   Future<void> restore() async {
     final prefs = await SharedPreferences.getInstance();
 
+    _dialCountryIso = prefs.getString(_countryKey);
     final server = prefs.getString(_serverKey);
     if (server != null && server.isNotEmpty) api.baseUrl = server;
 
@@ -157,10 +169,16 @@ class AppSession extends ChangeNotifier {
   /// Asks Twilio to dial [to]. Returns the call SID.
   Future<String> placeCall({required String to, String contactName = ''}) async {
     final response = await api.post('/api/mobile/calls/place', {
-      'to': toE164(to),
+      'to': normaliseE164(to),
       'contactName': contactName,
     });
     return response['callSid']?.toString() ?? '';
+  }
+
+  /// Where an outbound call has got to, straight from Twilio.
+  Future<CallProgress> callProgress(String sid) async {
+    final response = await api.get('/api/mobile/calls/status?sid=$sid');
+    return CallProgress.fromJson(response);
   }
 
   /// Records a finished call so it appears in history and the admin panel.
@@ -172,7 +190,7 @@ class AppSession extends ChangeNotifier {
     String direction = 'outbound',
   }) async {
     await api.post('/api/mobile/calls', {
-      'to': toE164(to),
+      'to': normaliseE164(to),
       'contactName': contactName,
       'direction': direction,
       'status': status,
@@ -187,7 +205,7 @@ class AppSession extends ChangeNotifier {
     String contactName = '',
   }) async {
     final response = await api.post('/api/mobile/messages', {
-      'to': toE164(to),
+      'to': normaliseE164(to),
       'body': body,
       'contactName': contactName,
     });
@@ -208,7 +226,7 @@ class AppSession extends ChangeNotifier {
   }) async {
     final response = await api.post('/api/mobile/contacts', {
       'name': name,
-      'phone': toE164(phone),
+      'phone': normaliseE164(phone),
       'role': role,
       'label': label,
     });

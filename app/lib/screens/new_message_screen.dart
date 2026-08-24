@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../core/countries.dart';
 import '../core/format.dart';
 import '../core/session.dart';
 import '../core/theme.dart';
 import '../models/models.dart';
 import '../widgets/common.dart';
+import '../widgets/country_picker.dart';
 
 /// One chosen recipient: a saved contact, or a number typed by hand.
 class _Recipient {
@@ -39,6 +41,7 @@ class _NewMessageScreenState extends State<NewMessageScreen> {
 
   List<Contact> _contacts = const [];
   bool _sending = false;
+  Country _country = kDefaultCountry;
 
   static const int _smsLimit = 160;
 
@@ -52,7 +55,10 @@ class _NewMessageScreenState extends State<NewMessageScreen> {
     final prefill = widget.prefillNumber;
     if (prefill != null && prefill.isNotEmpty) {
       _recipients.add(
-        _Recipient(name: widget.prefillName ?? '', phone: toE164(prefill)),
+        _Recipient(
+          name: widget.prefillName ?? '',
+          phone: normaliseE164(prefill),
+        ),
       );
     }
     _loadContacts();
@@ -93,9 +99,14 @@ class _NewMessageScreenState extends State<NewMessageScreen> {
     final raw = _recipientController.text.trim();
     if (raw.isEmpty) return;
 
-    final phone = toE164(raw);
-    if (phone.length < 8) {
-      _toast('Enter a full phone number, or pick a contact.');
+    final phone = raw.startsWith('+')
+        ? normaliseE164(raw)
+        : toE164(_country, raw);
+    if (!looksLikeE164(phone)) {
+      _toast(
+        'That is not a complete ${_country.name} number. Check the digits and '
+        'the country code.',
+      );
       return;
     }
     _addRecipient(_Recipient(name: '', phone: phone));
@@ -274,6 +285,28 @@ class _NewMessageScreenState extends State<NewMessageScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const CardLabel('To'),
+                            const SizedBox(height: AppSpace.sm),
+                            Row(
+                              children: [
+                                CountryCodeButton(
+                                  country: _country,
+                                  onChanged: (country) =>
+                                      setState(() => _country = country),
+                                  enabled: !_sending,
+                                  dense: true,
+                                ),
+                                const SizedBox(width: AppSpace.sm),
+                                const Expanded(
+                                  child: Text(
+                                    'Or type a full +… number',
+                                    style: TextStyle(
+                                      fontSize: 12.5,
+                                      color: AppColors.textMuted,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                             const SizedBox(height: AppSpace.sm),
                             TextField(
                               controller: _recipientController,
