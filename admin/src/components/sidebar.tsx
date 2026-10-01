@@ -8,6 +8,7 @@ import { useState, type ComponentType } from 'react';
 import {
   IconClose,
   IconDashboard,
+  IconDownload,
   IconHash,
   IconLogout,
   IconMenu,
@@ -108,6 +109,13 @@ function AccountFooter({
 
   return (
     <div className="space-y-3">
+      <a
+        href="/download/apk"
+        className="flex items-center justify-center gap-2 rounded-lg border border-line px-3 py-2 text-sm font-medium text-ink-soft transition-colors hover:bg-sunken hover:text-ink"
+      >
+        <IconDownload size={16} />
+        Download APK
+      </a>
       <ThemeToggle />
       <div className="flex items-center gap-2.5 rounded-lg border border-line bg-sunken px-3 py-2.5">
         <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-muted text-xs font-semibold text-brand">
