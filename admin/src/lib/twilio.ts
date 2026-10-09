@@ -109,14 +109,26 @@ export async function listRemoteNumbers(): Promise<RemoteNumber[]> {
   }));
 }
 
-/** Sends an SMS through Twilio and returns the created message SID + status. */
+/**
+ * Sends an SMS through Twilio and returns the created message SID + status.
+ *
+ * Twilio accepting a message only means it was queued — carriers can still
+ * refuse it minutes later (for example 30034, an unregistered US sender). The
+ * status callback is how that final outcome reaches the message log.
+ */
 export async function sendSms(params: {
   from: string;
   to: string;
   body: string;
 }): Promise<{ sid: string; status: string }> {
   const client = await getTwilioClient();
-  const message = await client.messages.create(params);
+  const { webhookBaseUrl } = await loadTwilioConfig();
+  const message = await client.messages.create({
+    ...params,
+    ...(webhookBaseUrl
+      ? { statusCallback: webhookTargets(webhookBaseUrl).smsStatus }
+      : {}),
+  });
   return { sid: message.sid, status: message.status };
 }
 
@@ -257,6 +269,7 @@ export function webhookTargets(baseUrl: string) {
   return {
     voice: `${base}/api/twilio/voice`,
     sms: `${base}/api/twilio/sms`,
+    smsStatus: `${base}/api/twilio/sms/status`,
   };
 }
 

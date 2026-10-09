@@ -122,6 +122,8 @@ const messageLogSchema = new Schema(
       enum: ['queued', 'sent', 'delivered', 'failed', 'received'],
       default: 'sent',
     },
+    // Twilio's error code when a carrier refused the message, e.g. 30034.
+    errorCode: { type: String, default: '' },
     // Null until the user opens the thread. The unread badge counts these, so
     // it can go down as well as up.
     readAt: { type: Date, default: null },

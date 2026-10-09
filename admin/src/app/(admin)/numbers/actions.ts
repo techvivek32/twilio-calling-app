@@ -5,12 +5,35 @@ import { revalidatePath } from 'next/cache';
 import { requireAdmin } from '@/lib/auth';
 import { connectToDatabase } from '@/lib/db';
 import { PhoneNumber, User } from '@/lib/models';
-import { listRemoteNumbers, toE164 } from '@/lib/twilio';
+import {
+  listRemoteNumbers,
+  loadTwilioConfig,
+  toE164,
+  wireWebhooks,
+} from '@/lib/twilio';
 
 export type ActionState = { ok?: string; error?: string };
 
 function text(formData: FormData, key: string): string {
   return String(formData.get(key) ?? '').trim();
+}
+
+/**
+ * Points every Twilio number at this server. A number bought after the admin
+ * last pressed "Wire webhooks" otherwise has none, and Twilio silently drops
+ * its inbound texts and calls — including WhatsApp sign-in codes.
+ *
+ * Best effort: a Twilio hiccup here must not undo the sync or assignment.
+ */
+async function wireQuietly(): Promise<string> {
+  try {
+    const { webhookBaseUrl } = await loadTwilioConfig();
+    if (!webhookBaseUrl) return '';
+    const { updated } = await wireWebhooks(webhookBaseUrl);
+    return updated ? ` Connected ${updated} number(s) to this server.` : '';
+  } catch {
+    return '';
+  }
 }
 
 function refresh() {
@@ -59,9 +82,10 @@ export async function syncNumbersAction(
       }
     }
 
+    const wired = await wireQuietly();
     refresh();
     return {
-      ok: `Synced ${remote.length} number(s) from Twilio — ${created} new, ${updated} updated.`,
+      ok: `Synced ${remote.length} number(s) from Twilio — ${created} new, ${updated} updated.${wired}`,
     };
   } catch (error) {
     return { error: (error as Error).message };
@@ -130,8 +154,9 @@ export async function assignNumberAction(
     number.assignedAt = new Date();
     await number.save();
 
+    const wired = number.sid ? await wireQuietly() : '';
     refresh();
-    return { ok: `${number.phoneNumber} assigned to ${user.name}.` };
+    return { ok: `${number.phoneNumber} assigned to ${user.name}.${wired}` };
   } catch (error) {
     return { error: (error as Error).message };
   }
